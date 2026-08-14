@@ -1,0 +1,25 @@
+{
+  "name": "Elevate Webapp",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "workspaceFolder": "/workspace/webapp",
+  "runArgs": ["--network=devnet"],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "cweijan.vscode-postgresql-client2"
+      ]
+    }
+  },
+
+  "forwardPorts": [3000, 5173],
+
+  "containerEnv": {
+    "DATABASE_URL": "postgresql://postgres:postgres@postgres:5432/elevate_webapp"
+  },
+
+  "postCreateCommand": "npm install --prefix server"
+}
