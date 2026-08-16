@@ -14,10 +14,17 @@ export interface ActivityListItem {
   name: string;
   type: string;
   startTime: string;
-  movingTime: number | null;
-  distance: number | null;
+  endTime: string;
+  startTimestamp: number;
+  endTimestamp: number;
   hasPowerMeter: boolean;
+  trainer: boolean;
+  commute: boolean;
+  manual: boolean;
   settingsLack: boolean | null;
+  athleteSnapshot: unknown;
+  stats: unknown;
+  srcStats: unknown;
 }
 
 export interface ActivityDetail extends Activity {
@@ -64,8 +71,9 @@ export class ActivitiesRepository {
     params.push(filters.limit);
     params.push(filters.offset);
     const itemsResult = await pool.query(
-      `SELECT id, name, type, start_time, has_power_meter, settings_lack,
-              (stats->'movingTime') as moving_time, (stats->'distance') as distance
+      `SELECT id, name, type, start_time, end_time, start_timestamp, end_timestamp,
+              has_power_meter, trainer, commute, manual, settings_lack,
+              athlete_snapshot, stats, src_stats
        FROM activities ${where}
        ORDER BY start_time DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -77,10 +85,17 @@ export class ActivitiesRepository {
       name: row.name,
       type: row.type,
       startTime: row.start_time.toISOString(),
-      movingTime: row.moving_time,
-      distance: row.distance,
+      endTime: row.end_time.toISOString(),
+      startTimestamp: row.start_timestamp,
+      endTimestamp: row.end_timestamp,
       hasPowerMeter: row.has_power_meter,
+      trainer: row.trainer,
+      commute: row.commute,
+      manual: row.manual,
       settingsLack: row.settings_lack,
+      athleteSnapshot: row.athlete_snapshot,
+      stats: row.stats,
+      srcStats: row.src_stats,
     }));
 
     return { items, total };
