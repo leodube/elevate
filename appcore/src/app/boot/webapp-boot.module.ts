@@ -6,7 +6,7 @@ import { WebappTopBarComponent } from "../top-bar/webapp-top-bar.component";
 import { AppLoadService } from "../app-load/app-load.service";
 import { WebappLoadService } from "../app-load/webapp/webapp-load.service";
 import { APP_MORE_MENU_COMPONENT } from "../app-more-menu/app-more-menu.component";
-import { ExtensionAppMoreMenuComponent } from "../app-more-menu/extension-app-more-menu.component";
+import { WebappAppMoreMenuComponent } from "../app-more-menu/webapp-more-menu.component";
 import { SYNC_BAR_COMPONENT } from "../sync-bar/sync-bar.component";
 import { WebappSyncBarComponent } from "../sync-bar/webapp-sync-bar.component";
 import { ExtensionRecalculateActivitiesBarComponent } from "../recalculate-activities-bar/extension-recalculate-activities-bar.component";
@@ -23,13 +23,6 @@ import { WebappSplashScreenComponent } from "../app-load/webapp/webapp-splash-sc
 import { SPLASH_SCREEN_COMPONENT } from "../app-load/splash-screen.component";
 import { WebappElevateErrorHandler } from "../errors-handler/webapp-elevate-error-handler";
 
-/**
- * Mirrors ExtensionBootModule/DesktopBootModule's shape exactly. Where a
- * target-agnostic component already exists (AppMoreMenu, UpdateBar,
- * RecalculateActivitiesBar - all keyed only to abstract DI tokens, no
- * chrome/electron-specific code), it's reused directly rather than
- * duplicated under a Webapp-prefixed name.
- */
 @NgModule({
   imports: [CoreModule, WebappRoutingModule],
   exports: [CoreModule, WebappRoutingModule],
@@ -39,7 +32,7 @@ import { WebappElevateErrorHandler } from "../errors-handler/webapp-elevate-erro
     ExtensionUpdateBarComponent,
     WebappSyncBarComponent,
     WebappTopBarComponent,
-    ExtensionAppMoreMenuComponent,
+    WebappAppMoreMenuComponent,
     WebappSyncMenuComponent
   ],
   providers: [
@@ -52,7 +45,7 @@ import { WebappElevateErrorHandler } from "../errors-handler/webapp-elevate-erro
     { provide: SYNC_BAR_COMPONENT, useValue: WebappSyncBarComponent },
     { provide: RECALCULATE_ACTIVITIES_BAR_COMPONENT, useValue: ExtensionRecalculateActivitiesBarComponent },
     { provide: TOP_BAR_COMPONENT, useValue: WebappTopBarComponent },
-    { provide: APP_MORE_MENU_COMPONENT, useValue: ExtensionAppMoreMenuComponent },
+    { provide: APP_MORE_MENU_COMPONENT, useValue: WebappAppMoreMenuComponent },
     { provide: SYNC_MENU_COMPONENT, useValue: WebappSyncMenuComponent }
   ]
 })
