@@ -1,8 +1,8 @@
 <div class="mat-body-1" id="app-container">
   <ng-container appTopBar></ng-container>
   <mat-sidenav-container>
-    <mat-sidenav (closed)="onSideNavClosed()" (opened)="onSideNavOpened()" mode="side">
-      <mat-nav-list>
+    <mat-sidenav [opened]="appService.isAuthenticated && sideNavUserPreference" (closed)="onSideNavClosed()" (opened)="onSideNavOpened()" mode="side">
+      <mat-nav-list *ngIf="appService.isAuthenticated">
         <mat-list-item (click)="openResourceResolver.openLink('https://www.strava.com/dashboard')"
           *ngIf="(buildTarget === BuildTarget.EXTENSION)">
           <mat-icon fontSet="material-icons-outlined" svgIcon="strava"></mat-icon>
@@ -17,14 +17,14 @@
         </mat-list-item>
       </mat-nav-list>
 
-      <div id="logo" class="clickable" (click)="onOpenWebSite()"
+      <div *ngIf="appService.isAuthenticated" id="logo" class="clickable" (click)="onOpenWebSite()"
         matTooltip="Elevate v{{ versionsProvider.getPackageVersion() }}" matTooltipPosition="above"></div>
 
     </mat-sidenav>
 
     <mat-toolbar>
 
-      <button (click)="onSideNavToggle()" id="toolBarMenu" mat-icon-button>
+      <button *ngIf="appService.isAuthenticated" (click)="onSideNavToggle()" id="toolBarMenu" mat-icon-button>
         <mat-icon fontSet="material-icons-outlined">menu</mat-icon>
       </button>
 

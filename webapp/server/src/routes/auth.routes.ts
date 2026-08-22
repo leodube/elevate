@@ -24,7 +24,7 @@ authRouter.post("/login", async (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "strict",
-    maxAge: authService.cookieMaxAgeMs,
+    maxAge: authService.cookieMaxAgeMs
   });
   res.status(200).json({ ok: true });
 });
@@ -32,4 +32,11 @@ authRouter.post("/login", async (req, res) => {
 authRouter.post("/logout", (req, res) => {
   res.clearCookie(AUTH_COOKIE_NAME);
   res.status(200).json({ ok: true });
+});
+
+authRouter.get("/session", (req, res) => {
+  const authService = container.resolve(AuthService);
+  const cookieValue = req.cookies?.[AUTH_COOKIE_NAME];
+  const authenticated = authService.verifySignedCookieValue(cookieValue);
+  res.status(200).json({ authenticated });
 });

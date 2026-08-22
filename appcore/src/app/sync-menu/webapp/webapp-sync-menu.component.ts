@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from "@angular/core";
+import { Component, Inject, OnDestroy, OnInit } from "@angular/core";
 import { SyncMenuComponent } from "../sync-menu.component";
 import { Router } from "@angular/router";
 import { MatDialog } from "@angular/material/dialog";
@@ -8,17 +8,9 @@ import { WebappSyncService } from "../../shared/services/sync/impl/webapp-sync.s
 import { SyncService } from "../../shared/services/sync/sync.service";
 import { AppService } from "../../shared/services/app-service/app.service";
 import { WebappAppService } from "../../shared/services/app-service/webapp/webapp-app.service";
+import { WebappAuthService } from "../../webapp/auth/webapp-auth.service";
+import { Subscription } from "rxjs";
 
-/**
- * Simplified relative to ExtensionSyncMenuComponent: no backup/restore
- * (rejected by WebappSyncService by design - Postgres is the durable
- * store), and a single "Sync now" action rather than fast/full/clear
- * distinctions, since the server-side connector always does incremental
- * sync from its own watermark. Backfill exists as a separate
- * POST /api/sync/backfill endpoint on webapp/server but isn't wired to
- * this menu yet - SyncService's abstract sync() signature doesn't carry a
- * "backfill" concept, and adding one is future work, not v1 scope.
- */
 @Component({
   selector: "app-webapp-sync-menu",
   template: `
@@ -36,25 +28,54 @@ import { WebappAppService } from "../../shared/services/app-service/webapp/webap
     </div>
   `
 })
-export class WebappSyncMenuComponent extends SyncMenuComponent implements OnInit {
+export class WebappSyncMenuComponent extends SyncMenuComponent implements OnInit, OnDestroy {
+  private authSubscription: Subscription;
+
   constructor(
     @Inject(AppService) public readonly webappAppService: WebappAppService,
     @Inject(Router) protected readonly router: Router,
     @Inject(SyncService) protected readonly webappSyncService: WebappSyncService,
     @Inject(MatDialog) protected readonly dialog: MatDialog,
-    @Inject(MatSnackBar) protected readonly snackBar: MatSnackBar
+    @Inject(MatSnackBar) protected readonly snackBar: MatSnackBar,
+    @Inject(WebappAuthService) private readonly authService: WebappAuthService
   ) {
     super(webappAppService, router, webappSyncService, dialog, snackBar);
   }
 
   public ngOnInit(): void {
-    super.ngOnInit();
+    this.historyChangesSub = this.webappAppService.historyChanges$.subscribe(() => {
+      this.maybeUpdateSyncStatus();
+    });
+
+    this.authSubscription = this.authService.isAuthenticated$.subscribe(isAuthenticated => {
+      if (isAuthenticated) {
+        this.updateSyncStatus();
+      } else {
+        this.syncState = null;
+      }
+    });
+  }
+
+  public ngOnDestroy(): void {
+    this.authSubscription.unsubscribe();
+    super.ngOnDestroy();
+  }
+
+  private maybeUpdateSyncStatus(): void {
+    if (this.authService.isAuthenticated$.value) {
+      this.updateSyncStatus();
+    }
   }
 
   protected updateSyncStatus(): void {
-    this.webappSyncService.getSyncState().then((syncState: SyncState) => {
-      this.syncState = syncState;
-    });
+    this.webappSyncService.getSyncState().then(
+      (syncState: SyncState) => {
+        this.syncState = syncState;
+      },
+      () => {
+        this.syncState = null;
+      }
+    );
   }
 
   public onSync(): void {
@@ -68,8 +89,13 @@ export class WebappSyncMenuComponent extends SyncMenuComponent implements OnInit
   }
 
   public onRestore(): void {
-    this.snackBar.open("Restore isn't supported in the webapp target - use the intervals.icu connector instead.", "Close", {
-      duration: 5000
-    });
+    this.snackBar.open(
+      "Restore isn't supported in the webapp target - use the intervals.icu connector instead.",
+
+      "Close",
+      {
+        duration: 5000
+      }
+    );
   }
 }
