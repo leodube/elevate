@@ -1,13 +1,13 @@
-import _ from "lodash";
-import { Hash } from "../../tools/hash";
-import { ActivityComputer } from "@elevate/shared/sync/compute/activity-computer";
-import { Activity, ActivityStats } from "@elevate/shared/models/sync/activity.model";
-import { Streams } from "@elevate/shared/models/activity-data/streams.model";
 import { ActivityEssentials } from "@elevate/shared/models/activity-data/activity-essentials.model";
-import { UserSettings } from "@elevate/shared/models/user-settings/user-settings.namespace";
+import { Streams } from "@elevate/shared/models/activity-data/streams.model";
 import { AthleteSnapshot } from "@elevate/shared/models/athlete/athlete-snapshot.model";
-import { ActivityFlagsProcessor } from "../activity-flags/activity-flags.processor";
+import { Activity, ActivityStats } from "@elevate/shared/models/sync/activity.model";
+import { UserSettings } from "@elevate/shared/models/user-settings/user-settings.namespace";
+import { ActivityComputer } from "@elevate/shared/sync/compute/activity-computer";
+import _ from "lodash";
 import { LogMethod } from "../../tools/decorators";
+import { Hash } from "../../tools/hash";
+import { ActivityFlagsProcessor } from "../activity-flags/activity-flags.processor";
 
 export class ActivityComputeProcessor {
   @LogMethod()

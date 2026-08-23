@@ -79,17 +79,22 @@ export class IntervalsApiClient {
     return await this.fetchJson<IntervalsActivity[]>(`/athlete/0/activities${query}`);
   }
 
+  /**
+   * Gets an activity by id
+   *
+   * OpenAPI Spec:
+   * https://intervals.icu/api-docs.html#get-/api/v1/activity/-id-
+   */
   @LogMethod()
   public async getActivity(activityId: string): Promise<IntervalsActivity> {
     return this.fetchJson<IntervalsActivity>(`/activity/${activityId}?intervals=true`);
   }
 
   /**
-   * Fetches raw streams for an activity. Per the OpenAPI spec description,
-   * intervals.icu has a quirk: without an explicit "watts" type requested,
-   * the analyzed/fixed power stream may come back renamed to "raw_watts".
-   * We explicitly request "watts" below to get the analyzed stream,
-   * matching what Elevate's compute pipeline expects.
+   * Fetches raw streams for an activity
+   *
+   * OpenAPI Spec:
+   * https://intervals.icu/api-docs.html#get-/api/v1/activity/-id-/streams-ext-
    */
   @LogMethod()
   public async getStreams(activityId: string): Promise<IntervalsStreamEntry[]> {

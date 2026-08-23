@@ -1,10 +1,10 @@
+import { BuildTarget } from "@elevate/shared/enums/build-target.enum";
 import { ElevateSport } from "@elevate/shared/enums/elevate-sport.enum";
+import { Streams } from "@elevate/shared/models/activity-data/streams.model";
 import { AthleteSnapshot } from "@elevate/shared/models/athlete/athlete-snapshot.model";
 import { Activity } from "@elevate/shared/models/sync/activity.model";
-import { Streams } from "@elevate/shared/models/activity-data/streams.model";
 import { UserSettings } from "@elevate/shared/models/user-settings/user-settings.namespace";
 import { AthleteSnapshotResolver } from "@elevate/shared/resolvers/athlete-snapshot.resolver";
-import { BuildTarget } from "@elevate/shared/enums/build-target.enum";
 import { IntervalsActivity, IntervalsApiClient, IntervalsStreamEntry } from "../clients/intervals-api.client";
 import { ActivityComputeProcessor } from "../processors/activity-compute/activity-compute.processor";
 import { ActivitiesRepository } from "../repositories/activities.repository";
