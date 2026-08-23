@@ -5,16 +5,6 @@ import { OPEN_RESOURCE_RESOLVER, OpenResourceResolver } from "../shared/services
 import { AppMoreMenuComponent } from "./app-more-menu.component";
 import { WebappAuthService } from "../webapp/auth/webapp-auth.service";
 
-/**
- * Not a straight reuse of ExtensionAppMoreMenuComponent (unlike UpdateBar/
- * RecalculateActivitiesBar) because it needs a Log out action, and because
- * three of the extension's menu items (Release notes, Report a bug,
- * Advanced) navigate to routes that don't exist in
- * webapp-routing.module.ts - webapp v1's route scope is just
- * login/activities/connectors, and there's no wildcard route either, so
- * those would have been silent dead clicks. Left out rather than carried
- * over unused.
- */
 @Component({
   selector: "app-webapp-app-more-menu",
   template: `

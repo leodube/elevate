@@ -5,6 +5,7 @@ import { ElevateSport } from "@elevate/shared/enums/elevate-sport.enum";
 import { ActivityComputer } from "@elevate/shared/sync/compute/activity-computer";
 import { Constant } from "@elevate/shared/constants/constant";
 import { AthleteSettings } from "@elevate/shared/models/athlete/athlete-settings/athlete-settings.model";
+import { LogMethod } from "../../tools/decorators";
 
 export class ActivityFlagsProcessor {
   // Speed
@@ -43,6 +44,7 @@ export class ActivityFlagsProcessor {
   private static readonly SCORE_RSS_PER_HOUR_THRESHOLD = ActivityFlagsProcessor.SCORE_DEFAULT_PER_HOUR_THRESHOLD;
   private static readonly SCORE_SSS_PER_HOUR_THRESHOLD = ActivityFlagsProcessor.SCORE_DEFAULT_PER_HOUR_THRESHOLD;
 
+  @LogMethod()
   public static verify(activity: Activity, streams: Streams): ActivityFlag[] {
     // If user remove flags with a null value, don't verify for flags. Return same value
     if (activity.flags === null) {
@@ -55,6 +57,7 @@ export class ActivityFlagsProcessor {
   /**
    * Verify streams consistency independently from stream processor
    */
+  @LogMethod()
   public static verifyRawStreams(sport: ElevateSport, streams: Streams): ActivityFlag[] {
     const flags: ActivityFlag[] = [];
 
@@ -74,6 +77,7 @@ export class ActivityFlagsProcessor {
     return flags;
   }
 
+  @LogMethod()
   public static verifyStats(activity: Activity): ActivityFlag[] {
     if (!activity.stats) {
       return [];
@@ -87,6 +91,7 @@ export class ActivityFlagsProcessor {
     );
   }
 
+  @LogMethod()
   private static verifyStressScores(stats: ActivityStats): ActivityFlag[] {
     const flags: ActivityFlag[] = [];
     // Test hrss/h
@@ -124,6 +129,7 @@ export class ActivityFlagsProcessor {
     return flags;
   }
 
+  @LogMethod()
   private static verifyAverages(
     sport: ElevateSport,
     stats: ActivityStats,
@@ -164,6 +170,7 @@ export class ActivityFlagsProcessor {
     return flags;
   }
 
+  @LogMethod()
   private static verifyThresholds(stats: ActivityStats): ActivityFlag[] {
     const flags: ActivityFlag[] = [];
     if (Number.isFinite(stats?.power?.best20min) && stats?.power?.best20min > this.POWER_BEST_20MIN_THRESHOLD) {
@@ -172,6 +179,7 @@ export class ActivityFlagsProcessor {
     return flags;
   }
 
+  @LogMethod()
   private static verifyPace(sport: ElevateSport, stats: ActivityStats): ActivityFlag[] {
     const flags: ActivityFlag[] = [];
 
@@ -184,6 +192,7 @@ export class ActivityFlagsProcessor {
     return flags;
   }
 
+  @LogMethod()
   private static verifyTime(stats: ActivityStats): ActivityFlag[] {
     const flags: ActivityFlag[] = [];
 

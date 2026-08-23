@@ -10,6 +10,7 @@ import { ActivityComputeProcessor } from "../processors/activity-compute/activit
 import { ActivitiesRepository } from "../repositories/activities.repository";
 import { AthleteRepository } from "../repositories/athlete.repository";
 import { IntervalsSettingsRepository } from "../repositories/intervals-settings.repository";
+import { LogMethod } from "../tools/decorators";
 
 export interface SyncResult {
   activitiesProcessed: number;
@@ -45,15 +46,14 @@ export class IntervalsConnector {
    * Incremental sync: pulls activities newer than the stored watermark.
    * This is the "on load / background timer / manual button" path.
    */
+  @LogMethod()
   public async syncNew(): Promise<SyncResult> {
     const settings = await this.settingsRepo.get();
     if (!settings?.apiKey) {
       throw new Error("intervals.icu is not configured - missing API key");
     }
 
-    const oldest = settings.lastSyncedStartTimestamp
-      ? new Date(settings.lastSyncedStartTimestamp * 1000)
-      : undefined;
+    const oldest = settings.lastSyncedStartTimestamp ? new Date(settings.lastSyncedStartTimestamp * 1000) : undefined;
 
     return this.runSync(settings.apiKey, oldest, undefined);
   }
@@ -63,6 +63,7 @@ export class IntervalsConnector {
    * incremental watermark. Intended for the manual "backfill" action on the
    * connectors page.
    */
+  @LogMethod()
   public async backfill(oldest?: Date, newest?: Date): Promise<SyncResult> {
     const settings = await this.settingsRepo.get();
     if (!settings?.apiKey) {
@@ -72,6 +73,7 @@ export class IntervalsConnector {
     return this.runSync(settings.apiKey, oldest, newest);
   }
 
+  @LogMethod()
   private async runSync(apiKey: string, oldest: Date | undefined, newest: Date | undefined): Promise<SyncResult> {
     if (this.isSyncingFlag) {
       throw new Error("Sync already in progress");
@@ -87,11 +89,7 @@ export class IntervalsConnector {
       const client = new IntervalsApiClient(apiKey);
       const bareActivities = await client.listActivities(oldest, newest);
 
-      // Oldest-first, so the watermark only advances past activities we've
-      // actually succeeded on - same reasoning as the Garmin fit-sync script.
-      bareActivities.sort(
-        (a, b) => new Date(a.start_date_local).getTime() - new Date(b.start_date_local).getTime()
-      );
+      bareActivities.sort((a, b) => new Date(a.start_date_local).getTime() - new Date(b.start_date_local).getTime());
 
       let latestProcessedTimestamp: number | null = null;
 
@@ -105,16 +103,14 @@ export class IntervalsConnector {
 
           const [detail, streamEntries] = await Promise.all([
             client.getActivity(bare.id),
-            client.getStreams(bare.id).catch(() => [] as IntervalsStreamEntry[]),
+            client.getStreams(bare.id).catch(() => [] as IntervalsStreamEntry[])
           ]);
 
           const streams = this.mapStreams(streamEntries);
           const activity = this.mapToActivity(detail);
 
           const startTimestamp = activity.startTimestamp;
-          const athleteSnapshot: AthleteSnapshot = athleteSnapshotResolver.resolve(
-            new Date(startTimestamp * 1000)
-          );
+          const athleteSnapshot: AthleteSnapshot = athleteSnapshotResolver.resolve(new Date(startTimestamp * 1000));
           const userSettings: UserSettings.BaseUserSettings = UserSettings.getDefaultsByBuildTarget
             ? UserSettings.getDefaultsByBuildTarget(BuildTarget.DESKTOP)
             : ({} as UserSettings.BaseUserSettings);
@@ -133,9 +129,7 @@ export class IntervalsConnector {
           latestProcessedTimestamp = startTimestamp;
         } catch (err) {
           result.errors.push({ activityId: bare.id, message: (err as Error).message });
-          // Stop advancing the watermark past a failure, matching the
-          // Garmin script's approach - leave it at the last success so a
-          // retry picks the failed activity back up.
+          // Stop advancing the watermark past a failure
           break;
         }
       }
@@ -160,6 +154,7 @@ export class IntervalsConnector {
    * offset - acceptable for now, worth revisiting if intervals.icu exposes
    * a separate timezone field once we can inspect a real payload.
    */
+  @LogMethod()
   private mapToActivity(source: IntervalsActivity): Partial<Activity> {
     const startTime = new Date(`${source.start_date_local}Z`);
     const movingTimeSec = source.moving_time ?? 0;
@@ -185,8 +180,8 @@ export class IntervalsConnector {
         movingTime: movingTimeSec,
         elapsedTime: elapsedTimeSec,
         elevationGain: source.icu_climbing ?? source.climbing ?? null,
-        calories: source.calories ?? null,
-      } as any,
+        calories: source.calories ?? null
+      } as any
     };
   }
 
@@ -197,6 +192,7 @@ export class IntervalsConnector {
    * match Strava's/Elevate's own naming directly since we explicitly
    * request those exact type names in getStreams().
    */
+  @LogMethod()
   private mapStreams(entries: IntervalsStreamEntry[]): Streams {
     const streams = new Streams();
     for (const entry of entries) {

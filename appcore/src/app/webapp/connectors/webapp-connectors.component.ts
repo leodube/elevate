@@ -6,6 +6,7 @@ import { environment } from "../../../environments/environment";
 
 interface IntervalsConnectorSettingsResponse {
   configured: boolean;
+  apiKey: string | null;
   athleteId: string | null;
   lastSyncedAt: string | null;
 }
@@ -18,7 +19,8 @@ interface IntervalsConnectorSettingsResponse {
 
       <p *ngIf="settings?.configured" class="mat-body-1">
         Connected<span *ngIf="settings.athleteId"> as {{ settings.athleteId }}</span
-        ><span *ngIf="settings.lastSyncedAt"> - last synced {{ settings.lastSyncedAt | date: "medium" }}</span>.
+        ><span *ngIf="settings.lastSyncedAt"> - last synced {{ settings.lastSyncedAt | date: "medium" }}</span
+        >.
       </p>
       <p *ngIf="settings && !settings.configured" class="mat-body-1">Not configured yet.</p>
 
@@ -35,9 +37,7 @@ interface IntervalsConnectorSettingsResponse {
       </form>
 
       <div style="margin-top: 24px">
-        <button mat-raised-button color="accent" (click)="onTriggerSync()" [disabled]="isSyncing">
-          Sync now
-        </button>
+        <button mat-raised-button color="accent" (click)="onTriggerSync()" [disabled]="isSyncing">Sync now</button>
         <span *ngIf="isSyncing" class="mat-body-1" style="margin-left: 12px">Syncing...</span>
       </div>
     </div>
@@ -67,6 +67,8 @@ export class WebappConnectorsComponent implements OnInit {
       )
     ).then(settings => {
       this.settings = settings;
+      this.apiKey = settings.apiKey ?? "";
+      this.athleteId = settings.athleteId ?? "";
     });
   }
 

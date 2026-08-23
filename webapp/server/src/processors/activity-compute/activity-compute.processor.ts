@@ -7,8 +7,10 @@ import { ActivityEssentials } from "@elevate/shared/models/activity-data/activit
 import { UserSettings } from "@elevate/shared/models/user-settings/user-settings.namespace";
 import { AthleteSnapshot } from "@elevate/shared/models/athlete/athlete-snapshot.model";
 import { ActivityFlagsProcessor } from "../activity-flags/activity-flags.processor";
+import { LogMethod } from "../../tools/decorators";
 
 export class ActivityComputeProcessor {
+  @LogMethod()
   public static hash(activity: Partial<Activity>): string {
     const activityUnit = {
       type: activity.type,
@@ -26,6 +28,7 @@ export class ActivityComputeProcessor {
     return Hash.asObjectId(JSON.stringify(activityUnit));
   }
 
+  @LogMethod()
   public static geoBaryCenter(streams: Partial<Streams>): number[] {
     if (!streams) {
       return null;
@@ -43,6 +46,7 @@ export class ActivityComputeProcessor {
     return [cLat, cLng];
   }
 
+  @LogMethod()
   public static compute(
     activity: Partial<Activity>,
     athleteSnapshot: AthleteSnapshot,

@@ -1,47 +1,34 @@
 import { env } from "../config/env";
+import { LogMethod } from "../tools/decorators";
 
 /**
  * Thin HTTP client for the intervals.icu REST API.
  *
- * Auth: confirmed against the official cookbook (forum.intervals.icu) as
- * plain HTTP Basic auth, with the literal string "API_KEY" as the username
- * and the actual per-athlete API key as the password. This is NOT the
- * "ApiKey <key>" custom header scheme some third-party summaries show -
- * that appears to be inaccurate; Basic auth is what intervals.icu's own
- * docs demonstrate.
- *
- * Field names below are taken from the real OpenAPI spec (via
- * ActivityFilter.field_id enum, which lists actual API field names) and
- * the cookbook's example response - not guessed. A few remain unconfirmed
- * because the full Activity schema wasn't reachable during research; those
- * are marked explicitly. Verify against a real response during first
- * integration testing and adjust IntervalsActivity below if any are wrong -
- * unknown fields simply won't populate, they won't throw.
+ * Open API spec:
+ * intervals.icu/api-docs.html#overview
  */
 
 export interface IntervalsActivity {
-  id: string; // confirmed format e.g. "i55751783"
+  id: string;
   name: string;
-  type: string; // e.g. "Ride", "Run", "Swim" - intervals.icu's own sport enum, mapped to ElevateSport separately
-  start_date_local: string; // confirmed field name; timezone-naive local ISO datetime (no offset) - see mapping notes
-  moving_time: number; // seconds - confirmed via ActivityFilter field_id
-  elapsed_time: number; // seconds - confirmed via ActivityFilter field_id
-  distance: number; // meters - confirmed
-  average_heartrate?: number; // confirmed
-  max_heartrate?: number; // confirmed
-  average_speed?: number; // m/s - confirmed
-  max_speed?: number; // confirmed
-  average_cadence?: number; // confirmed
-  average_power?: number; // confirmed - NOTE: named differently from Strava's "average_watts"
-  icu_weighted_avg_watts?: number; // confirmed - normalized/weighted power
-  average_temp?: number; // confirmed
-  calories?: number; // confirmed
-  device_name?: string; // confirmed
-  trimp?: number; // confirmed
-  file_type?: string; // confirmed, e.g. "fit"
-  // UNCONFIRMED - elevation gain. ActivityFilter lists a "climbing" filter
-  // field; the real JSON key may be "climbing" or "icu_climbing". Verify
-  // against a real response.
+  type: string; // e.g. "Ride", "Run", "Swim"
+  start_date_local: string;
+  moving_time: number;
+  elapsed_time: number;
+  distance: number;
+  average_heartrate?: number;
+  max_heartrate?: number;
+  average_speed?: number;
+  max_speed?: number;
+  average_cadence?: number;
+  average_power?: number;
+  icu_weighted_avg_watts?: number;
+  average_temp?: number;
+  calories?: number;
+  device_name?: string;
+  trimp?: number;
+  file_type?: string; // e.g. "fit"
+  // UNCONFIRMED
   icu_climbing?: number;
   climbing?: number;
 }
@@ -59,10 +46,11 @@ export class IntervalsApiClient {
     return `Basic ${credentials}`;
   }
 
+  @LogMethod()
   private async fetchJson<T>(path: string): Promise<T> {
     const url = `${env.intervals.apiBaseUrl}${path}`;
     const response = await fetch(url, {
-      headers: { Authorization: this.authHeader() },
+      headers: { Authorization: this.authHeader() }
     });
 
     if (!response.ok) {
@@ -74,23 +62,24 @@ export class IntervalsApiClient {
   }
 
   /**
-   * Lists activities for the authenticated athlete ("0" resolves to "self"
-   * per the cookbook) within an optional date range. Used for both
-   * incremental sync (oldest = last watermark) and backfill (oldest = far
-   * in the past / omitted).
+   * Lists activities for the authenticated athlete ("0" resolves to "self")
+   *
+   * OpenAPI Spec:
+   * https://intervals.icu/api-docs.html#get-/api/v1/athlete/-id-/activities
    */
-  public async listActivities(oldest?: Date, newest?: Date): Promise<IntervalsActivity[]> {
+  @LogMethod()
+  public async listActivities(oldest: Date = new Date("2024-01-01"), newest?: Date): Promise<IntervalsActivity[]> {
     const params = new URLSearchParams();
-    if (oldest) {
-      params.set("oldest", oldest.toISOString().slice(0, 10));
-    }
+    params.set("oldest", oldest.toISOString().slice(0, 10));
+
     if (newest) {
       params.set("newest", newest.toISOString().slice(0, 10));
     }
     const query = params.toString() ? `?${params.toString()}` : "";
-    return this.fetchJson<IntervalsActivity[]>(`/athlete/0/activities${query}`);
+    return await this.fetchJson<IntervalsActivity[]>(`/athlete/0/activities${query}`);
   }
 
+  @LogMethod()
   public async getActivity(activityId: string): Promise<IntervalsActivity> {
     return this.fetchJson<IntervalsActivity>(`/activity/${activityId}?intervals=true`);
   }
@@ -102,6 +91,7 @@ export class IntervalsApiClient {
    * We explicitly request "watts" below to get the analyzed stream,
    * matching what Elevate's compute pipeline expects.
    */
+  @LogMethod()
   public async getStreams(activityId: string): Promise<IntervalsStreamEntry[]> {
     const types = [
       "time",
@@ -113,10 +103,8 @@ export class IntervalsApiClient {
       "latlng",
       "velocity_smooth",
       "grade_smooth",
-      "temp",
+      "temp"
     ].join(",");
-    return this.fetchJson<IntervalsStreamEntry[]>(
-      `/activity/${activityId}/streams.json?types=${types}`
-    );
+    return this.fetchJson<IntervalsStreamEntry[]>(`/activity/${activityId}/streams.json?types=${types}`);
   }
 }

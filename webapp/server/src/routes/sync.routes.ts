@@ -6,10 +6,7 @@ import { IntervalsSettingsRepository } from "../repositories/intervals-settings.
 
 export const syncRouter = Router();
 
-// Single shared connector instance so isSyncing is a real, process-wide
-// guard - the same instance backs all three trigger sources (on load,
-// background timer, manual button), matching the desktop app's
-// ConnectorSyncService.isSyncing pattern.
+// Single shared connector instance so isSyncing is a process-wide guard
 const connector = new IntervalsConnector(
   new IntervalsSettingsRepository(),
   new ActivitiesRepository(),
@@ -23,7 +20,7 @@ syncRouter.get("/status", async (_req, res) => {
   const settings = await settingsRepo.get();
   res.json({
     isSyncing: connector.isSyncing,
-    lastSyncedAt: settings?.lastSyncedAt ?? null,
+    lastSyncedAt: settings?.lastSyncedAt ?? null
   });
 });
 
@@ -37,7 +34,7 @@ syncRouter.post("/trigger", async (_req, res) => {
     // Not awaited on purpose - the caller (page load / button) gets an
     // immediate 202 and polls /status, rather than holding the HTTP
     // request open for the duration of a sync.
-    connector.syncNew().catch((err) => {
+    connector.syncNew().catch(err => {
       console.error("Background sync failed:", err);
     });
     res.status(202).json({ ok: true });
@@ -53,7 +50,7 @@ syncRouter.post("/backfill", async (_req, res) => {
   }
 
   try {
-    connector.backfill().catch((err) => {
+    connector.backfill().catch(err => {
       console.error("Background backfill failed:", err);
     });
     res.status(202).json({ ok: true });

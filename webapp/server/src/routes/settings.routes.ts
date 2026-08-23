@@ -11,9 +11,9 @@ settingsRouter.get("/intervals-connector", async (_req, res) => {
   const settings = await settingsRepo.get();
   res.json({
     configured: !!settings?.apiKey,
+    apiKey: settings?.apiKey,
     athleteId: settings?.athleteId ?? null,
-    lastSyncedAt: settings?.lastSyncedAt ?? null,
-    // API key itself is never returned to the client once set.
+    lastSyncedAt: settings?.lastSyncedAt ?? null
   });
 });
 
@@ -58,7 +58,7 @@ settingsRouter.post("/athlete-settings", async (req, res) => {
     cyclingFtp: numOrNull(body.cyclingFtp),
     runningFtp: numOrNull(body.runningFtp),
     swimFtp: numOrNull(body.swimFtp),
-    weight: numOrNull(body.weight),
+    weight: numOrNull(body.weight)
   };
   await athleteRepo.addDatedSettings(entry);
   res.status(201).json({ ok: true });
