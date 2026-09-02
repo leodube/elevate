@@ -39,8 +39,16 @@ export class ActivityComputeProcessor {
       return null;
     }
 
-    const lat = latLngStream.map(latLng => latLng[0]);
-    const lng = latLngStream.map(latLng => latLng[1]);
+    const validPoints = latLngStream.filter(
+      (latLng): latLng is number[] =>
+        Array.isArray(latLng) && latLng.length >= 2 && latLng[0] != null && latLng[1] != null
+    );
+    if (validPoints.length === 0) {
+      return null;
+    }
+
+    const lat = validPoints.map(latLng => latLng[0]);
+    const lng = validPoints.map(latLng => latLng[1]);
     const cLat = (Math.min(...lat) + Math.max(...lat)) / 2;
     const cLng = (Math.min(...lng) + Math.max(...lng)) / 2;
     return [cLat, cLng];

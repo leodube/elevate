@@ -79,7 +79,7 @@ export class WebappSyncMenuComponent extends SyncMenuComponent implements OnInit
   }
 
   public onSync(): void {
-    this.webappSyncService.sync(false, false);
+    this.webappSyncService.sync();
   }
 
   public onBackup(): void {

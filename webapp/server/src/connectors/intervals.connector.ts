@@ -3,6 +3,7 @@ import { ElevateSport } from "@elevate/shared/enums/elevate-sport.enum";
 import { Streams } from "@elevate/shared/models/activity-data/streams.model";
 import { AthleteSnapshot } from "@elevate/shared/models/athlete/athlete-snapshot.model";
 import { Activity } from "@elevate/shared/models/sync/activity.model";
+import { SyncProgress } from "@elevate/shared/models/sync/sync-progress.model";
 import { UserSettings } from "@elevate/shared/models/user-settings/user-settings.namespace";
 import { AthleteSnapshotResolver } from "@elevate/shared/resolvers/athlete-snapshot.resolver";
 import { IntervalsActivity, IntervalsApiClient, IntervalsStreamEntry } from "../clients/intervals-api.client";
@@ -30,7 +31,7 @@ export interface SyncResult {
  */
 
 export class IntervalsConnector {
-  private isSyncingFlag = false;
+  private progress: SyncProgress = IntervalsConnector.idleProgress();
 
   constructor(
     private readonly settingsRepo: IntervalsSettingsRepository,
@@ -39,7 +40,27 @@ export class IntervalsConnector {
   ) {}
 
   public get isSyncing(): boolean {
-    return this.isSyncingFlag;
+    return this.progress.isSyncing;
+  }
+
+  /**
+   * Snapshot for the /api/sync/status poll. Returns a copy to prevent mutation
+   */
+  public getProgress(): SyncProgress {
+    return { ...this.progress, errors: [...this.progress.errors] };
+  }
+
+  private static idleProgress(): SyncProgress {
+    return {
+      isSyncing: false,
+      totalFound: null,
+      processedCount: 0,
+      skippedCount: 0,
+      currentActivity: null,
+      errors: [],
+      startedAt: null,
+      completedAt: null
+    };
   }
 
   /**
@@ -75,12 +96,19 @@ export class IntervalsConnector {
 
   @LogMethod()
   private async runSync(apiKey: string, oldest: Date | undefined, newest: Date | undefined): Promise<SyncResult> {
-    if (this.isSyncingFlag) {
+    if (this.progress.isSyncing) {
       throw new Error("Sync already in progress");
     }
-    this.isSyncingFlag = true;
-
-    const result: SyncResult = { activitiesProcessed: 0, activitiesSkipped: 0, errors: [] };
+    this.progress = {
+      isSyncing: true,
+      totalFound: null,
+      processedCount: 0,
+      skippedCount: 0,
+      currentActivity: null,
+      errors: [],
+      startedAt: new Date().toISOString(),
+      completedAt: null
+    };
 
     try {
       const athleteModel = await this.athleteRepo.getAthleteModel();
@@ -90,14 +118,17 @@ export class IntervalsConnector {
       const bareActivities = await client.listActivities(oldest, newest);
 
       bareActivities.sort((a, b) => new Date(a.start_date_local).getTime() - new Date(b.start_date_local).getTime());
+      this.progress.totalFound = bareActivities.length;
 
       let latestProcessedTimestamp: number | null = null;
 
       for (const bare of bareActivities) {
+        this.progress.currentActivity = { id: bare.id, name: bare.name, startTime: bare.start_date_local };
+
         try {
           const alreadySynced = await this.activitiesRepo.exists(bare.id);
           if (alreadySynced) {
-            result.activitiesSkipped++;
+            this.progress.skippedCount++;
             continue;
           }
 
@@ -125,11 +156,11 @@ export class IntervalsConnector {
 
           await this.activitiesRepo.upsert(computedActivity, deflatedStreams);
 
-          result.activitiesProcessed++;
+          this.progress.processedCount++;
           latestProcessedTimestamp = startTimestamp;
         } catch (err) {
-          result.errors.push({ activityId: bare.id, message: (err as Error).message });
-          // Stop advancing the watermark past a failure
+          this.progress.errors.push({ activityId: bare.id, message: (err as Error).message });
+          // Stop advancing on first failure, on purpose - see prior discussion.
           break;
         }
       }
@@ -138,9 +169,15 @@ export class IntervalsConnector {
         await this.settingsRepo.updateWatermark(latestProcessedTimestamp);
       }
 
-      return result;
+      return {
+        activitiesProcessed: this.progress.processedCount,
+        activitiesSkipped: this.progress.skippedCount,
+        errors: [...this.progress.errors]
+      };
     } finally {
-      this.isSyncingFlag = false;
+      this.progress.isSyncing = false;
+      this.progress.currentActivity = null;
+      this.progress.completedAt = new Date().toISOString();
     }
   }
 

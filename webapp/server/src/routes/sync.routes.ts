@@ -19,7 +19,7 @@ syncRouter.get("/status", async (_req, res) => {
   const settingsRepo = new IntervalsSettingsRepository();
   const settings = await settingsRepo.get();
   res.json({
-    isSyncing: connector.isSyncing,
+    ...connector.getProgress(),
     lastSyncedAt: settings?.lastSyncedAt ?? null
   });
 });
