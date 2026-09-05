@@ -167,6 +167,21 @@ export class ActivitiesRepository {
     return result.rows[0].streams_deflated;
   }
 
+  /**
+   * Full activity shape suitable for feeding back into
+   * ActivityComputeProcessor.compute() during recalculation - same query
+   * as getById() minus the streamsAvailable flag, returned as a plain
+   * Activity rather than ActivityDetail.
+   */
+  public async getFullActivity(activityId: string): Promise<Activity | null> {
+    const detail = await this.getById(activityId);
+    if (!detail) {
+      return null;
+    }
+    const { streamsAvailable, ...activity } = detail;
+    return activity;
+  }
+
   public async upsert(activity: Activity, streamsDeflated: string | null): Promise<void> {
     await pool.query(
       `INSERT INTO activities (

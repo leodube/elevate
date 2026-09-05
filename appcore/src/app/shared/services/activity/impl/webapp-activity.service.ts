@@ -8,7 +8,6 @@ import { AthleteSnapshotResolverService } from "../../athlete-snapshot-resolver/
 import { LoggerService } from "../../logging/logger.service";
 import { ActivityService } from "../activity.service";
 import { environment } from "../../../../../environments/environment";
-
 interface ActivitiesListResponse {
   items: Activity[];
   total: number;
@@ -41,10 +40,17 @@ interface ActivitiesListResponse {
  *     to that component. Flagged for a follow-up, not fixed here.
  *   - createManualEntry() - manual entry doesn't map cleanly onto a
  *     server whose sole data source is intervals.icu; out of v1 scope
- *   - isAthleteSettingsConsistent()/verifyConsistencyWithAthleteSettings()/
- *     nonConsistentActivitiesWithAthleteSettings() - depend on
- *     athleteSnapshotResolver, which itself depends on WebappAthleteService
- *     (also a flagged v1 gap)
+ *
+ * isAthleteSettingsConsistent() IS overridden below, even though
+ * nonConsistentActivitiesWithAthleteSettings() (its sibling, used for the
+ * same athlete-settings-consistency feature) already works via the base
+ * class unmodified. The base class has a real inconsistency between the
+ * two: nonConsistentActivitiesWithAthleteSettings() correctly calls
+ * this.fetch(), but isAthleteSettingsConsistent() calls
+ * this.activityDao.find() directly - which still hits the empty local
+ * WebappDataStore, so without this override the "activities need to be
+ * recalculated" banner would silently never fire, always seeing zero
+ * activities and reporting "consistent" by default.
  */
 @Injectable()
 export class WebappActivityService extends ActivityService {
@@ -55,6 +61,22 @@ export class WebappActivityService extends ActivityService {
     @Inject(HttpClient) private readonly httpClient: HttpClient
   ) {
     super(activityDao, athleteSnapshotResolver, logger);
+  }
+
+  public isAthleteSettingsConsistent(): Promise<boolean> {
+    return this.athleteSnapshotResolver.update().then(() => {
+      return this.fetch().then((activities: Activity[]) => {
+        let isCompliant = true;
+        _.forEachRight(activities, (activity: Activity) => {
+          const athleteModelFound = this.athleteSnapshotResolver.resolve(new Date(activity.startTime));
+          if (!athleteModelFound.equals(activity.athleteSnapshot)) {
+            isCompliant = false;
+            return false;
+          }
+        });
+        return isCompliant;
+      });
+    });
   }
 
   public fetch(): Promise<Activity[]> {

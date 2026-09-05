@@ -1,6 +1,7 @@
 import { Gender } from "@elevate/shared/models/athlete/gender.enum";
+import { PracticeLevel } from "@elevate/shared/models/athlete/athlete-level.enum";
 import { Router } from "express";
-import { AthleteRepository, DatedAthleteSettingsInput } from "../repositories/athlete.repository";
+import { AthleteModelInput, AthleteRepository, DatedAthleteSettingsInput } from "../repositories/athlete.repository";
 import { IntervalsSettingsRepository } from "../repositories/intervals-settings.repository";
 
 export const settingsRouter = Router();
@@ -27,41 +28,53 @@ settingsRouter.put("/intervals-connector", async (req, res) => {
   res.status(200).json({ ok: true });
 });
 
-// --- Athlete profile (gender, birth date) ---
+// --- Athlete model (matches AthleteService.fetch()/update()'s whole-model
+// contract exactly - the reused desktop UI always sends/expects the full
+// AthleteModel, not per-field or per-entry granular updates) ---
 
-settingsRouter.put("/athlete-profile", async (req, res) => {
-  const { gender, birthDate } = req.body ?? {};
-  if (gender !== Gender.MEN && gender !== Gender.WOMEN) {
+settingsRouter.get("/athlete-model", async (_req, res) => {
+  const athleteModel = await athleteRepo.getAthleteModel();
+  res.json(athleteModel);
+});
+
+settingsRouter.put("/athlete-model", async (req, res) => {
+  const body = req.body ?? {};
+
+  if (body.gender !== Gender.MEN && body.gender !== Gender.WOMEN) {
     res.status(400).json({ error: "gender must be 'men' or 'women'" });
     return;
   }
-  await athleteRepo.updateProfile(gender, typeof birthDate === "string" ? birthDate : null);
-  res.status(200).json({ ok: true });
-});
+  if (!Array.isArray(body.datedAthleteSettings)) {
+    res.status(400).json({ error: "datedAthleteSettings must be an array" });
+    return;
+  }
 
-// --- Dated athlete settings (FTP/weight/HR, over time) ---
-
-settingsRouter.get("/athlete-settings", async (_req, res) => {
-  const entries = await athleteRepo.listDatedSettings();
-  res.json({ entries });
-});
-
-settingsRouter.post("/athlete-settings", async (req, res) => {
-  const body = req.body ?? {};
-  const entry: DatedAthleteSettingsInput = {
-    since: typeof body.since === "string" ? body.since : null,
-    maxHr: numOrNull(body.maxHr),
-    restHr: numOrNull(body.restHr),
-    lthrDefault: numOrNull(body.lthrDefault),
-    lthrCycling: numOrNull(body.lthrCycling),
-    lthrRunning: numOrNull(body.lthrRunning),
-    cyclingFtp: numOrNull(body.cyclingFtp),
-    runningFtp: numOrNull(body.runningFtp),
-    swimFtp: numOrNull(body.swimFtp),
-    weight: numOrNull(body.weight)
+  const input: AthleteModelInput = {
+    gender: body.gender,
+    firstName: typeof body.firstName === "string" ? body.firstName : null,
+    lastName: typeof body.lastName === "string" ? body.lastName : null,
+    birthDate: typeof body.birthDate === "string" ? body.birthDate.slice(0, 10) : null,
+    practiceLevel: Object.values(PracticeLevel).includes(body.practiceLevel) ? body.practiceLevel : null,
+    sports: Array.isArray(body.sports) ? body.sports : [],
+    datedAthleteSettings: body.datedAthleteSettings.map(
+      (entry: any): DatedAthleteSettingsInput => ({
+        since: typeof entry.since === "string" ? entry.since : null,
+        maxHr: numOrNull(entry.maxHr),
+        restHr: numOrNull(entry.restHr),
+        lthrDefault: numOrNull(entry.lthr?.default),
+        lthrCycling: numOrNull(entry.lthr?.cycling),
+        lthrRunning: numOrNull(entry.lthr?.running),
+        cyclingFtp: numOrNull(entry.cyclingFtp),
+        runningFtp: numOrNull(entry.runningFtp),
+        swimFtp: numOrNull(entry.swimFtp),
+        weight: numOrNull(entry.weight)
+      })
+    )
   };
-  await athleteRepo.addDatedSettings(entry);
-  res.status(201).json({ ok: true });
+
+  await athleteRepo.replaceAthleteModel(input);
+  const updated = await athleteRepo.getAthleteModel();
+  res.json(updated);
 });
 
 function numOrNull(value: unknown): number | null {

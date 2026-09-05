@@ -3,13 +3,12 @@ import { MenuItemModel, MenuItemsProvider } from "../menu-items-provider.interfa
 import { AppRoutes } from "../../../models/app-routes";
 
 /**
- * v1 scope only lists the pages this target actually implements. Other
- * appcore pages (fitnessTrend, yearProgressions, globalSettings,
- * athleteSettings, zonesSettings) exist in the shared UI but aren't
- * wired to real webapp data yet (see the v1 gaps noted in
- * WebappAthleteService/WebappUserSettingsService) - leaving them out of
- * the menu avoids surfacing pages that would silently show empty/stale
- * local data.
+ * v1 scope lists the pages this target actually implements. Athlete
+ * Settings was added once WebappAthleteService became real (see its own
+ * comment). Other appcore pages (fitnessTrend, yearProgressions,
+ * globalSettings, zonesSettings) still aren't wired to real webapp data -
+ * leaving them out of the menu avoids surfacing pages that would silently
+ * show empty/stale local data.
  */
 @Injectable()
 export class WebappMenuItemsProvider implements MenuItemsProvider {
@@ -17,6 +16,11 @@ export class WebappMenuItemsProvider implements MenuItemsProvider {
     {
       icon: "view_list",
       routerLink: AppRoutes.activities,
+      routerLinkActive: true
+    },
+    {
+      icon: "person",
+      routerLink: AppRoutes.athleteSettings,
       routerLinkActive: true
     },
     {

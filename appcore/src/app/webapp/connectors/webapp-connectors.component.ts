@@ -3,6 +3,7 @@ import { Component, Inject, OnInit } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { firstValueFrom } from "rxjs";
 import { environment } from "../../../environments/environment";
+import { WebappSyncService } from "../../shared/services/sync/impl/webapp-sync.service";
 
 interface IntervalsConnectorSettingsResponse {
   configured: boolean;
@@ -33,13 +34,21 @@ interface IntervalsConnectorSettingsResponse {
           <mat-label>Athlete ID (optional)</mat-label>
           <input matInput name="athleteId" [(ngModel)]="athleteId" />
         </mat-form-field>
-        <button mat-raised-button color="primary" type="submit" [disabled]="isSaving">Save</button>
-      </form>
 
-      <div style="margin-top: 24px">
-        <button mat-raised-button color="accent" (click)="onTriggerSync()" [disabled]="isSyncing">Sync now</button>
-        <span *ngIf="isSyncing" class="mat-body-1" style="margin-left: 12px">Syncing...</span>
-      </div>
+        <div fxLayout="row" fxLayoutAlign="start center" style="gap: 12px; margin-top: 8px">
+          <button mat-raised-button color="primary" type="submit" [disabled]="isSaving">Save</button>
+          <button
+            mat-raised-button
+            color="accent"
+            type="button"
+            (click)="onTriggerBackfill()"
+            [disabled]="isBackfilling"
+          >
+            Sync all activities
+          </button>
+          <span *ngIf="isBackfilling" class="mat-body-1">Syncing...</span>
+        </div>
+      </form>
     </div>
   `
 })
@@ -47,12 +56,13 @@ export class WebappConnectorsComponent implements OnInit {
   public apiKey = "";
   public athleteId = "";
   public isSaving = false;
-  public isSyncing = false;
+  public isBackfilling = false;
   public settings: IntervalsConnectorSettingsResponse | null = null;
 
   constructor(
     @Inject(HttpClient) private readonly httpClient: HttpClient,
-    @Inject(MatSnackBar) private readonly snackBar: MatSnackBar
+    @Inject(MatSnackBar) private readonly snackBar: MatSnackBar,
+    @Inject(WebappSyncService) private readonly webappSyncService: WebappSyncService
   ) {}
 
   public ngOnInit(): void {
@@ -94,16 +104,18 @@ export class WebappConnectorsComponent implements OnInit {
       });
   }
 
-  public onTriggerSync(): void {
-    this.isSyncing = true;
-    firstValueFrom(
-      this.httpClient.post(`${environment.backendBaseUrl}/api/sync/trigger`, {}, { withCredentials: true })
-    )
+  public onTriggerBackfill(): void {
+    this.isBackfilling = true;
+    this.webappSyncService
+      .backfill()
+      .then(() => {
+        this.snackBar.open("Backfill started - watch the sync bar for progress.", "Close", { duration: 5000 });
+      })
       .catch(() => {
-        this.snackBar.open("Failed to trigger sync", "Close", { duration: 5000 });
+        this.snackBar.open("Failed to trigger backfill", "Close", { duration: 5000 });
       })
       .finally(() => {
-        this.isSyncing = false;
+        this.isBackfilling = false;
         this.refreshSettings();
       });
   }

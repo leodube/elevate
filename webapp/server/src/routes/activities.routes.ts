@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { ActivitiesRepository } from "../repositories/activities.repository";
+import { AthleteRepository } from "../repositories/athlete.repository";
+import { RecalculationService } from "../services/recalculation.service";
 
 export const activitiesRouter = Router();
 const activitiesRepo = new ActivitiesRepository();
@@ -41,4 +43,29 @@ activitiesRouter.get("/:id/streams", async (req, res) => {
   // Deliberately not JSON-wrapped further - just the deflated payload the
   // client feeds straight into Streams.inflate().
   res.json({ deflated });
+});
+
+const recalculationService = new RecalculationService(activitiesRepo, new AthleteRepository());
+
+activitiesRouter.post("/recalculate", async (req, res) => {
+  const { activityIds } = req.body ?? {};
+  if (!Array.isArray(activityIds) || activityIds.some(id => typeof id !== "string")) {
+    res.status(400).json({ error: "activityIds must be an array of strings" });
+    return;
+  }
+  if (recalculationService.isRecalculating) {
+    res.status(409).json({ error: "Recalculation already in progress" });
+    return;
+  }
+
+  // Not awaited on purpose, matching the sync trigger pattern - the
+  // caller polls /recalculate/status instead of holding the request open.
+  recalculationService.recalculate(activityIds).catch(err => {
+    console.error("Background recalculation failed:", err);
+  });
+  res.status(202).json({ ok: true });
+});
+
+activitiesRouter.get("/recalculate/status", (_req, res) => {
+  res.json(recalculationService.getProgress());
 });

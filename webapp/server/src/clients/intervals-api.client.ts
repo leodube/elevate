@@ -28,9 +28,26 @@ export interface IntervalsActivity {
   device_name?: string;
   trimp?: number;
   file_type?: string; // e.g. "fit"
-  // UNCONFIRMED
-  icu_climbing?: number;
-  climbing?: number;
+  total_elevation_gain?: number;
+  trainer?: boolean;
+  commute?: boolean;
+  description?: string;
+  device_watts?: boolean;
+  source?:
+    | "STRAVA"
+    | "UPLOAD"
+    | "MANUAL"
+    | "GARMIN_CONNECT"
+    | "OAUTH_CLIENT"
+    | "DROPBOX"
+    | "POLAR"
+    | "SUUNTO"
+    | "COROS"
+    | "WAHOO"
+    | "ZWIFT"
+    | "ZEPP"
+    | "CONCEPT2"
+    | "HUAWEI";
 }
 
 export interface IntervalsStreamEntry {

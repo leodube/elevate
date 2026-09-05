@@ -9,7 +9,7 @@ import { APP_MORE_MENU_COMPONENT } from "../app-more-menu/app-more-menu.componen
 import { WebappAppMoreMenuComponent } from "../app-more-menu/webapp-more-menu.component";
 import { SYNC_BAR_COMPONENT } from "../sync-bar/sync-bar.component";
 import { WebappSyncBarComponent } from "../sync-bar/webapp-sync-bar.component";
-import { ExtensionRecalculateActivitiesBarComponent } from "../recalculate-activities-bar/extension-recalculate-activities-bar.component";
+import { WebappRecalculateActivitiesBarComponent } from "../recalculate-activities-bar/webapp-recalculate-activities-bar.component";
 import { RECALCULATE_ACTIVITIES_BAR_COMPONENT } from "../recalculate-activities-bar/recalculate-activities-bar.component";
 import { SYNC_MENU_COMPONENT } from "../sync-menu/sync-menu.component";
 import { WebappSyncMenuComponent } from "../sync-menu/webapp/webapp-sync-menu.component";
@@ -28,7 +28,7 @@ import { WebappElevateErrorHandler } from "../errors-handler/webapp-elevate-erro
   exports: [CoreModule, WebappRoutingModule],
   declarations: [
     WebappSplashScreenComponent,
-    ExtensionRecalculateActivitiesBarComponent,
+    WebappRecalculateActivitiesBarComponent,
     ExtensionUpdateBarComponent,
     WebappSyncBarComponent,
     WebappTopBarComponent,
@@ -43,7 +43,7 @@ import { WebappElevateErrorHandler } from "../errors-handler/webapp-elevate-erro
     { provide: MENU_ITEMS_PROVIDER, useClass: WebappMenuItemsProvider },
     { provide: UPDATE_BAR_COMPONENT, useValue: ExtensionUpdateBarComponent },
     { provide: SYNC_BAR_COMPONENT, useValue: WebappSyncBarComponent },
-    { provide: RECALCULATE_ACTIVITIES_BAR_COMPONENT, useValue: ExtensionRecalculateActivitiesBarComponent },
+    { provide: RECALCULATE_ACTIVITIES_BAR_COMPONENT, useValue: WebappRecalculateActivitiesBarComponent },
     { provide: TOP_BAR_COMPONENT, useValue: WebappTopBarComponent },
     { provide: APP_MORE_MENU_COMPONENT, useValue: WebappAppMoreMenuComponent },
     { provide: SYNC_MENU_COMPONENT, useValue: WebappSyncMenuComponent }

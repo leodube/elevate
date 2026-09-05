@@ -61,6 +61,7 @@ export class WebappSyncService extends SyncService<void> implements OnDestroy {
 
   private readonly statusUrl = `${environment.backendBaseUrl}/api/sync/status`;
   private readonly triggerUrl = `${environment.backendBaseUrl}/api/sync/trigger`;
+  private readonly backfillUrl = `${environment.backendBaseUrl}/api/sync/backfill`;
 
   public readonly syncStatus$ = new BehaviorSubject<SyncStatusResponse>(IDLE_STATUS);
 
@@ -151,6 +152,20 @@ export class WebappSyncService extends SyncService<void> implements OnDestroy {
   }
 
   public sync(): Promise<void> {
+    return this.triggerAndTrack(this.triggerUrl);
+  }
+
+  /**
+   * Same status/polling machinery as sync() - webapp/server's
+   * IntervalsConnector shares one progress state between syncNew() and
+   * backfill() (both go through the same runSync()), so the sync bar
+   * correctly reflects a backfill run without any changes on that side.
+   */
+  public backfill(): Promise<void> {
+    return this.triggerAndTrack(this.backfillUrl);
+  }
+
+  private triggerAndTrack(url: string): Promise<void> {
     const previousCompletedAt = this.syncStatus$.value.completedAt;
 
     // Optimistic immediate update: there's an unavoidable round trip before
@@ -166,7 +181,7 @@ export class WebappSyncService extends SyncService<void> implements OnDestroy {
 
     this.startPolling(previousCompletedAt);
 
-    return firstValueFrom(this.httpClient.post(this.triggerUrl, {}, { withCredentials: true })).then(() => undefined);
+    return firstValueFrom(this.httpClient.post(url, {}, { withCredentials: true })).then(() => undefined);
   }
 
   public getSyncState(): Promise<SyncState> {

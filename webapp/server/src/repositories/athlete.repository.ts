@@ -2,6 +2,8 @@ import { AthleteModel } from "@elevate/shared/models/athlete/athlete.model";
 import { AthleteSettings } from "@elevate/shared/models/athlete/athlete-settings/athlete-settings.model";
 import { DatedAthleteSettings } from "@elevate/shared/models/athlete/athlete-settings/dated-athlete-settings.model";
 import { Gender } from "@elevate/shared/models/athlete/gender.enum";
+import { PracticeLevel } from "@elevate/shared/models/athlete/athlete-level.enum";
+import { ElevateSport } from "@elevate/shared/enums/elevate-sport.enum";
 import { pool } from "../db/pool";
 
 export interface DatedAthleteSettingsInput {
@@ -17,28 +19,110 @@ export interface DatedAthleteSettingsInput {
   weight: number | null;
 }
 
+export interface AthleteModelInput {
+  gender: Gender;
+  firstName: string | null;
+  lastName: string | null;
+  birthDate: string | null; // YYYY-MM-DD
+  practiceLevel: PracticeLevel | null;
+  sports: ElevateSport[];
+  datedAthleteSettings: DatedAthleteSettingsInput[];
+}
+
 export class AthleteRepository {
   /**
-   * Assembles a real AthleteModel from stored profile + dated settings,
-   * for feeding into AthleteSnapshotResolver during compute. Falls back to
-   * AthleteModel.DEFAULT_MODEL pieces wherever data is missing, same as
-   * the shared model's own defaults.
+   * Assembles a real AthleteModel (real class instance, not a plain
+   * object) from stored profile + dated settings, for feeding into
+   * AthleteSnapshotResolver during compute, and for the client's
+   * AthleteService.fetch() contract - the reused AthleteSettingsModule UI
+   * calls methods like DatedAthleteSettings.isForever() on these objects,
+   * which a plain JSON-shaped object wouldn't have.
    */
   public async getAthleteModel(): Promise<AthleteModel> {
     const profileResult = await pool.query(
-      "SELECT gender, birth_date FROM athlete_profile WHERE id = 1"
+      "SELECT gender, birth_date, first_name, last_name, practice_level, sports FROM athlete_profile WHERE id = 1"
     );
     const profileRow = profileResult.rows[0];
     const gender: Gender = profileRow?.gender === "women" ? Gender.WOMEN : Gender.MEN;
     const birthDate: Date | null = profileRow?.birth_date ?? null;
+    const firstName: string | null = profileRow?.first_name ?? null;
+    const lastName: string | null = profileRow?.last_name ?? null;
+    const practiceLevel: PracticeLevel | null = profileRow?.practice_level ?? null;
+    const sports: ElevateSport[] = profileRow?.sports ?? [];
 
-    const settingsResult = await pool.query(
+    const datedAthleteSettings = await this.getDatedAthleteSettingsInstances();
+
+    return new AthleteModel(
+      gender,
+      datedAthleteSettings.length > 0 ? datedAthleteSettings : [DatedAthleteSettings.DEFAULT_MODEL],
+      firstName,
+      lastName,
+      birthDate,
+      practiceLevel,
+      sports
+    );
+  }
+
+  /**
+   * Wholesale replace, matching AthleteService.update()'s contract exactly:
+   * the desktop UI (reused as-is) always sends the FULL AthleteModel,
+   * including the complete datedAthleteSettings array after any
+   * add/edit/remove - there's no granular per-entry endpoint on the
+   * desktop side either, it's all in-memory array mutation + one save.
+   * Transactional: profile fields update, all dated settings rows are
+   * deleted and replaced with the given array, atomically.
+   */
+  public async replaceAthleteModel(input: AthleteModelInput): Promise<void> {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      await client.query(
+        `UPDATE athlete_profile SET
+           gender = $1, first_name = $2, last_name = $3, birth_date = $4,
+           practice_level = $5, sports = $6, updated_at = now()
+         WHERE id = 1`,
+        [input.gender, input.firstName, input.lastName, input.birthDate, input.practiceLevel, input.sports]
+      );
+
+      await client.query("DELETE FROM athlete_dated_settings");
+
+      for (const entry of input.datedAthleteSettings) {
+        await client.query(
+          `INSERT INTO athlete_dated_settings
+            (since, max_hr, rest_hr, lthr_default, lthr_cycling, lthr_running, cycling_ftp, running_ftp, swim_ftp, weight)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            entry.since,
+            entry.maxHr,
+            entry.restHr,
+            entry.lthrDefault,
+            entry.lthrCycling,
+            entry.lthrRunning,
+            entry.cyclingFtp,
+            entry.runningFtp,
+            entry.swimFtp,
+            entry.weight
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async getDatedAthleteSettingsInstances(): Promise<DatedAthleteSettings[]> {
+    const result = await pool.query(
       `SELECT since, max_hr, rest_hr, lthr_default, lthr_cycling, lthr_running,
               cycling_ftp, running_ftp, swim_ftp, weight
        FROM athlete_dated_settings ORDER BY since DESC NULLS LAST`
     );
-
-    const datedAthleteSettings: DatedAthleteSettings[] = settingsResult.rows.map((row) => {
+    return result.rows.map(row => {
       const settings = new AthleteSettings(
         row.max_hr,
         row.rest_hr,
@@ -51,82 +135,6 @@ export class AthleteRepository {
       const since = row.since ? this.toDateOnlyString(row.since) : null;
       return new DatedAthleteSettings(since, settings);
     });
-
-    return new AthleteModel(
-      gender,
-      datedAthleteSettings.length > 0 ? datedAthleteSettings : [DatedAthleteSettings.DEFAULT_MODEL],
-      null,
-      null,
-      birthDate,
-      null,
-      []
-    );
-  }
-
-  public async updateProfile(gender: Gender, birthDate: string | null): Promise<void> {
-    await pool.query(
-      `UPDATE athlete_profile SET gender = $1, birth_date = $2, updated_at = now() WHERE id = 1`,
-      [gender, birthDate]
-    );
-  }
-
-  public async listDatedSettings(): Promise<DatedAthleteSettingsInput[]> {
-    const result = await pool.query(
-      `SELECT since, max_hr, rest_hr, lthr_default, lthr_cycling, lthr_running,
-              cycling_ftp, running_ftp, swim_ftp, weight
-       FROM athlete_dated_settings ORDER BY since DESC NULLS LAST`
-    );
-    return result.rows.map((row) => ({
-      since: row.since ? this.toDateOnlyString(row.since) : null,
-      maxHr: row.max_hr,
-      restHr: row.rest_hr,
-      lthrDefault: row.lthr_default,
-      lthrCycling: row.lthr_cycling,
-      lthrRunning: row.lthr_running,
-      cyclingFtp: row.cycling_ftp,
-      runningFtp: row.running_ftp,
-      swimFtp: row.swim_ftp,
-      weight: row.weight,
-    }));
-  }
-
-  /**
-   * Adds or replaces a dated settings entry for the given `since` period.
-   * Upserts rather than blind-inserting: a second "forever" (since = null)
-   * entry, or a second entry for the same specific date, replaces the
-   * existing one instead of creating an ambiguous duplicate that
-   * AthleteSnapshotResolver would have to arbitrarily tie-break between.
-   */
-  public async addDatedSettings(input: DatedAthleteSettingsInput): Promise<void> {
-    const conflictTarget = input.since === null ? "((since IS NULL)) WHERE since IS NULL" : "(since)";
-    await pool.query(
-      `INSERT INTO athlete_dated_settings
-        (since, max_hr, rest_hr, lthr_default, lthr_cycling, lthr_running, cycling_ftp, running_ftp, swim_ftp, weight)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       ON CONFLICT ${conflictTarget} DO UPDATE SET
-         max_hr = EXCLUDED.max_hr,
-         rest_hr = EXCLUDED.rest_hr,
-         lthr_default = EXCLUDED.lthr_default,
-         lthr_cycling = EXCLUDED.lthr_cycling,
-         lthr_running = EXCLUDED.lthr_running,
-         cycling_ftp = EXCLUDED.cycling_ftp,
-         running_ftp = EXCLUDED.running_ftp,
-         swim_ftp = EXCLUDED.swim_ftp,
-         weight = EXCLUDED.weight,
-         updated_at = now()`,
-      [
-        input.since,
-        input.maxHr,
-        input.restHr,
-        input.lthrDefault,
-        input.lthrCycling,
-        input.lthrRunning,
-        input.cyclingFtp,
-        input.runningFtp,
-        input.swimFtp,
-        input.weight,
-      ]
-    );
   }
 
   private toDateOnlyString(value: Date | string): string {

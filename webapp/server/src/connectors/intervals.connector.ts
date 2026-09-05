@@ -206,17 +206,18 @@ export class IntervalsConnector {
       endTime: endTime.toISOString(),
       startTimestamp: Math.floor(startTime.getTime() / 1000),
       endTimestamp: Math.floor(endTime.getTime() / 1000),
-      hasPowerMeter: source.average_power != null || source.icu_weighted_avg_watts != null,
-      trainer: false, // UNCONFIRMED: no trainer/indoor boolean field confirmed yet - defaulting false
-      commute: false, // UNCONFIRMED: not present in confirmed field list
-      manual: source.file_type == null, // heuristic: no file_type implies a manually-entered activity
+      hasPowerMeter: source.device_watts ?? false,
+      trainer: source.trainer ?? false,
+      commute: source.commute ?? false,
+      manual: source.source === "MANUAL",
       autoDetectedType: false,
       device: source.device_name ?? null,
+      notes: source.description ?? null,
       srcStats: {
         distance: source.distance ?? null,
         movingTime: movingTimeSec,
         elapsedTime: elapsedTimeSec,
-        elevationGain: source.icu_climbing ?? source.climbing ?? null,
+        elevationGain: source.total_elevation_gain ?? null,
         calories: source.calories ?? null
       } as any
     };
