@@ -22,6 +22,14 @@ const routes: Routes = [
       import("../../../athlete-settings/athlete-settings.module").then(module => module.AthleteSettingsModule)
   },
   {
+    path: AppRoutes.activity,
+    canActivate: [WebappAuthGuard],
+    loadChildren: () =>
+      import("../../../webapp/activity-view/webapp-activity-view.module").then(
+        module => module.WebappActivityViewModule
+      )
+  },
+  {
     path: AppRoutes.connectors,
     canActivate: [WebappAuthGuard],
     component: WebappConnectorsComponent

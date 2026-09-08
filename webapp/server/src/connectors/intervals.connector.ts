@@ -6,7 +6,15 @@ import { Activity } from "@elevate/shared/models/sync/activity.model";
 import { SyncProgress } from "@elevate/shared/models/sync/sync-progress.model";
 import { UserSettings } from "@elevate/shared/models/user-settings/user-settings.namespace";
 import { AthleteSnapshotResolver } from "@elevate/shared/resolvers/athlete-snapshot.resolver";
-import { IntervalsActivity, IntervalsApiClient, IntervalsStreamEntry } from "../clients/intervals-api.client";
+import {
+  IntervalsActivity,
+  IntervalsApiClient,
+  IntervalsStreamEntry,
+  IcuInterval
+} from "../clients/intervals-api.client";
+import { Movement } from "@elevate/shared/tools/movement";
+import { Constant } from "@elevate/shared/constants/constant";
+import { Lap } from "@elevate/shared/models/sync/activity.model";
 import { ActivityComputeProcessor } from "../processors/activity-compute/activity-compute.processor";
 import { ActivitiesRepository } from "../repositories/activities.repository";
 import { AthleteRepository } from "../repositories/athlete.repository";
@@ -151,7 +159,9 @@ export class IntervalsConnector {
             athleteSnapshot,
             userSettings,
             streams,
-            true
+            true, // deflateStreams
+            true, // returnPeaks
+            true // returnZones
           );
 
           await this.activitiesRepo.upsert(computedActivity, deflatedStreams);
@@ -183,17 +193,10 @@ export class IntervalsConnector {
 
   /**
    * Maps an intervals.icu activity onto Elevate's Activity model.
-   *
-   * start_date_local has no timezone offset. Treating it as UTC is a
-   * deliberate, documented choice to avoid depending on the server's own
-   * local timezone (which would silently shift times if the container ever
-   * moves). The real-world clock time may be off by the athlete's UTC
-   * offset - acceptable for now, worth revisiting if intervals.icu exposes
-   * a separate timezone field once we can inspect a real payload.
    */
   @LogMethod()
   private mapToActivity(source: IntervalsActivity): Partial<Activity> {
-    const startTime = new Date(`${source.start_date_local}Z`);
+    const startTime = new Date(source.start_date);
     const movingTimeSec = source.moving_time ?? 0;
     const elapsedTimeSec = source.elapsed_time ?? movingTimeSec;
     const endTime = new Date(startTime.getTime() + elapsedTimeSec * 1000);
@@ -213,14 +216,54 @@ export class IntervalsConnector {
       autoDetectedType: false,
       device: source.device_name ?? null,
       notes: source.description ?? null,
+      laps: this.mapToLaps(source.icu_intervals, (source.type as ElevateSport) ?? ElevateSport.Other),
       srcStats: {
         distance: source.distance ?? null,
         movingTime: movingTimeSec,
         elapsedTime: elapsedTimeSec,
-        elevationGain: source.total_elevation_gain ?? null,
         calories: source.calories ?? null
       } as any
     };
+  }
+
+  /**
+   * Maps intervals.icu's icu_intervals onto Elevate's Lap[] model.
+   */
+  private mapToLaps(icuIntervals: IcuInterval[] | undefined, sport: ElevateSport): Lap[] | null {
+    if (!icuIntervals || icuIntervals.length === 0) {
+      return null;
+    }
+
+    const isPaced = Activity.isPaced(sport);
+
+    return icuIntervals.map(interval => {
+      const avgSpeedKph = interval.average_speed != null ? interval.average_speed * Constant.MPS_KPH_FACTOR : null;
+      const maxSpeedKph = interval.max_speed != null ? interval.max_speed * Constant.MPS_KPH_FACTOR : null;
+
+      const lap: Lap = {
+        id: interval.id,
+        active: interval.type === "WORK",
+        indexes: [interval.start_index, interval.end_index],
+        distance: interval.distance ?? undefined,
+        elevationGain: interval.total_elevation_gain ?? undefined,
+        elapsedTime: interval.elapsed_time ?? undefined,
+        movingTime: interval.moving_time ?? undefined,
+        avgCadence: interval.average_cadence ?? undefined,
+        avgHr: interval.average_heartrate ?? undefined,
+        maxHr: interval.max_heartrate ?? undefined,
+        avgWatts: interval.average_watts ?? undefined
+      };
+
+      if (isPaced) {
+        lap.avgPace = avgSpeedKph != null ? (Movement.speedToPace(avgSpeedKph) ?? undefined) : undefined;
+        lap.maxPace = maxSpeedKph != null ? (Movement.speedToPace(maxSpeedKph) ?? undefined) : undefined;
+      } else {
+        lap.avgSpeed = avgSpeedKph ?? undefined;
+        lap.maxSpeed = maxSpeedKph ?? undefined;
+      }
+
+      return lap;
+    });
   }
 
   /**
@@ -234,8 +277,27 @@ export class IntervalsConnector {
   private mapStreams(entries: IntervalsStreamEntry[]): Streams {
     const streams = new Streams();
     for (const entry of entries) {
+      if (entry.type === "latlng") {
+        (streams as any).latlng = this.pairLatLng(entry.data as (number | null)[], entry.data2);
+        continue;
+      }
       (streams as any)[entry.type] = entry.data;
     }
     return streams;
+  }
+
+  /**
+   * Combines intervals.icu's separate data (lat) and data2 (lng) arrays
+   * into [lat, lng] pairs at each index. A null in either component at a
+   * given index produces a null pair at that index rather than a partial tuple.
+   */
+  private pairLatLng(lat: (number | null)[], lng: (number | null)[] | undefined): (number[] | null)[] {
+    if (!lng) {
+      return [];
+    }
+    return lat.map((latValue, i) => {
+      const lngValue = lng[i];
+      return latValue != null && lngValue != null ? [latValue, lngValue] : null;
+    });
   }
 }

@@ -13,6 +13,7 @@ export interface IntervalsActivity {
   name: string;
   type: string; // e.g. "Ride", "Run", "Swim"
   start_date_local: string;
+  start_date: string;
   moving_time: number;
   elapsed_time: number;
   distance: number;
@@ -48,11 +49,33 @@ export interface IntervalsActivity {
     | "ZEPP"
     | "CONCEPT2"
     | "HUAWEI";
+  icu_intervals?: IcuInterval[];
+}
+
+export interface IcuInterval {
+  id: number;
+  type: "WORK" | "RECOVERY";
+  start_index: number;
+  end_index: number;
+  distance?: number;
+  moving_time?: number;
+  elapsed_time?: number;
+  average_speed?: number;
+  max_speed?: number;
+  average_heartrate?: number;
+  max_heartrate?: number;
+  average_cadence?: number;
+  average_watts?: number;
+  total_elevation_gain?: number;
+  label?: string;
 }
 
 export interface IntervalsStreamEntry {
   type: string;
-  data: number[] | number[][];
+  // Multi-dimensional streams aren't a single array of pairs. Intervals.icu
+  // splits them across two parallel arrays.
+  data: (number | null)[] | (number | null)[][];
+  data2?: (number | null)[];
 }
 
 export class IntervalsApiClient {

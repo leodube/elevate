@@ -3,6 +3,7 @@ import { Component, Inject, OnInit } from "@angular/core";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { firstValueFrom } from "rxjs";
 import { environment } from "../../../environments/environment";
+import { SyncService } from "../../shared/services/sync/sync.service";
 import { WebappSyncService } from "../../shared/services/sync/impl/webapp-sync.service";
 
 interface IntervalsConnectorSettingsResponse {
@@ -62,7 +63,7 @@ export class WebappConnectorsComponent implements OnInit {
   constructor(
     @Inject(HttpClient) private readonly httpClient: HttpClient,
     @Inject(MatSnackBar) private readonly snackBar: MatSnackBar,
-    @Inject(WebappSyncService) private readonly webappSyncService: WebappSyncService
+    @Inject(SyncService) private readonly webappSyncService: WebappSyncService
   ) {}
 
   public ngOnInit(): void {

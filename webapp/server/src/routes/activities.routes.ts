@@ -2,6 +2,8 @@ import { Router } from "express";
 import { ActivitiesRepository } from "../repositories/activities.repository";
 import { AthleteRepository } from "../repositories/athlete.repository";
 import { RecalculationService } from "../services/recalculation.service";
+import { SplitCalculatorProcessor } from "../processors/split-calculator/split-calculator.processor";
+import { SplitRequest } from "@elevate/shared/models/splits/split-request.model";
 
 export const activitiesRouter = Router();
 const activitiesRepo = new ActivitiesRepository();
@@ -40,8 +42,6 @@ activitiesRouter.get("/:id/streams", async (req, res) => {
     res.status(404).json({ error: "No streams stored for this activity" });
     return;
   }
-  // Deliberately not JSON-wrapped further - just the deflated payload the
-  // client feeds straight into Streams.inflate().
   res.json({ deflated });
 });
 
@@ -58,8 +58,7 @@ activitiesRouter.post("/recalculate", async (req, res) => {
     return;
   }
 
-  // Not awaited on purpose, matching the sync trigger pattern - the
-  // caller polls /recalculate/status instead of holding the request open.
+  // Not awaited on purpose, the caller polls /recalculate/status
   recalculationService.recalculate(activityIds).catch(err => {
     console.error("Background recalculation failed:", err);
   });
@@ -68,4 +67,26 @@ activitiesRouter.post("/recalculate", async (req, res) => {
 
 activitiesRouter.get("/recalculate/status", (_req, res) => {
   res.json(recalculationService.getProgress());
+});
+
+const splitCalculator = new SplitCalculatorProcessor();
+
+activitiesRouter.post("/compute-split", async (req, res) => {
+  const splitRequest = req.body as SplitRequest;
+  if (
+    typeof splitRequest?.type !== "number" ||
+    typeof splitRequest?.range !== "number" ||
+    !Array.isArray(splitRequest?.scaleStream) ||
+    !Array.isArray(splitRequest?.dataStreams)
+  ) {
+    res.status(400).json({ error: "Invalid split request" });
+    return;
+  }
+
+  try {
+    const response = await splitCalculator.computeSplits(splitRequest);
+    res.json(response);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });

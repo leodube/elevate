@@ -3,6 +3,8 @@ import { Inject, Injectable } from "@angular/core";
 import _ from "lodash";
 import { firstValueFrom } from "rxjs";
 import { Activity } from "@elevate/shared/models/sync/activity.model";
+import { SplitRequest } from "@elevate/shared/models/splits/split-request.model";
+import { SplitResponse } from "@elevate/shared/models/splits/split-response.model";
 import { ActivityDao } from "../../../dao/activity/activity.dao";
 import { AthleteSnapshotResolverService } from "../../athlete-snapshot-resolver/athlete-snapshot-resolver.service";
 import { LoggerService } from "../../logging/logger.service";
@@ -51,6 +53,19 @@ interface ActivitiesListResponse {
  * WebappDataStore, so without this override the "activities need to be
  * recalculated" banner would silently never fire, always seeing zero
  * activities and reporting "consistent" by default.
+ *
+ * computeSplit() is NOT part of ActivityService's abstract contract at
+ * all - it's a method DesktopActivityService adds on top, and
+ * ActivityViewBestSplitsComponent injects ActivityService typed
+ * concretely as DesktopActivityService specifically to call it. That
+ * means omitting it here wouldn't show up as a compile error (TypeScript
+ * checks against the component's declared type, not what's actually
+ * injected at runtime) - it would only fail the first time someone
+ * clicked a split option on the Best Splits tab. Added here against
+ * webapp/server's POST /api/activities/compute-split, which wraps the
+ * same portable SplitCalculatorProcessor desktop's IPC handler uses -
+ * copied server-side unmodified, since it's stateless and has zero
+ * Electron dependencies.
  */
 @Injectable()
 export class WebappActivityService extends ActivityService {
@@ -61,6 +76,11 @@ export class WebappActivityService extends ActivityService {
     @Inject(HttpClient) private readonly httpClient: HttpClient
   ) {
     super(activityDao, athleteSnapshotResolver, logger);
+  }
+
+  public computeSplit(splitRequest: SplitRequest): Promise<SplitResponse> {
+    const url = `${environment.backendBaseUrl}/api/activities/compute-split`;
+    return firstValueFrom(this.httpClient.post<SplitResponse>(url, splitRequest, { withCredentials: true }));
   }
 
   public isAthleteSettingsConsistent(): Promise<boolean> {

@@ -22,6 +22,8 @@ import { ExtensionUpdateBarComponent } from "../update-bar/extension-update-bar.
 import { WebappSplashScreenComponent } from "../app-load/webapp/webapp-splash-screen.component";
 import { SPLASH_SCREEN_COMPONENT } from "../app-load/splash-screen.component";
 import { WebappElevateErrorHandler } from "../errors-handler/webapp-elevate-error-handler";
+import { StreamsService } from "../shared/services/streams/streams.service";
+import { WebappStreamsService } from "../shared/services/streams/impl/webapp-streams.service";
 
 @NgModule({
   imports: [CoreModule, WebappRoutingModule],
@@ -46,7 +48,8 @@ import { WebappElevateErrorHandler } from "../errors-handler/webapp-elevate-erro
     { provide: RECALCULATE_ACTIVITIES_BAR_COMPONENT, useValue: WebappRecalculateActivitiesBarComponent },
     { provide: TOP_BAR_COMPONENT, useValue: WebappTopBarComponent },
     { provide: APP_MORE_MENU_COMPONENT, useValue: WebappAppMoreMenuComponent },
-    { provide: SYNC_MENU_COMPONENT, useValue: WebappSyncMenuComponent }
+    { provide: SYNC_MENU_COMPONENT, useValue: WebappSyncMenuComponent },
+    { provide: StreamsService, useClass: WebappStreamsService }
   ]
 })
 export class TargetBootModule {}
