@@ -86,6 +86,7 @@ export class WebappActivityViewComponent implements OnInit, OnDestroy {
     this.displayGraph = false;
     this.displayFlags = true;
     this.isRecalculating = false;
+    this.isResyncing = false;
   }
 
   private static readonly DEVICE_WATCH_SPORTS = [
@@ -114,6 +115,7 @@ export class WebappActivityViewComponent implements OnInit, OnDestroy {
   public displayGraph: boolean;
   public displayFlags: boolean;
   public isRecalculating: boolean;
+  public isResyncing: boolean;
 
   /**
    * Displays debug "on map statistics" activity data on graph bound selection
@@ -127,6 +129,10 @@ export class WebappActivityViewComponent implements OnInit, OnDestroy {
   }
 
   private loadActivity(activityId: string): Promise<void> {
+    this.activity = null;
+    this.streams = null;
+    this.hasMapData = false;
+
     return this.activityService
       .getById(activityId)
       .then((activity: Activity) => {
@@ -268,6 +274,29 @@ export class WebappActivityViewComponent implements OnInit, OnDestroy {
       });
 
     return poll();
+  }
+
+  public onResyncActivity(): void {
+    this.isResyncing = true;
+    this.snackBar.open("Resyncing from intervals.icu...");
+
+    firstValueFrom(
+      this.httpClient.post(
+        `${environment.backendBaseUrl}/api/activities/${this.activity.id}/resync`,
+        {},
+        { withCredentials: true }
+      )
+    )
+      .then(() => this.loadActivity(this.activity.id as string))
+      .then(() => {
+        this.snackBar.open("Activity has been resynced", "Ok", { duration: 5000 });
+      })
+      .catch(() => {
+        this.snackBar.open("Failed to resync this activity", "Close", { duration: 5000 });
+      })
+      .finally(() => {
+        this.isResyncing = false;
+      });
   }
 
   public onBack(): void {

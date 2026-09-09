@@ -62,6 +62,10 @@
           <mat-icon fontSet="material-icons-outlined">memory</mat-icon>
           Recalculate activity
         </button>
+        <button mat-menu-item (click)="onResyncActivity()" [disabled]="isResyncing" *ngIf="!activity.manual">
+          <mat-icon fontSet="material-icons-outlined">cloud_sync</mat-icon>
+          Resync activity
+        </button>
       </mat-menu>
     </div>
   </div>

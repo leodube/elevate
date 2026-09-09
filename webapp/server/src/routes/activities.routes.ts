@@ -4,6 +4,7 @@ import { AthleteRepository } from "../repositories/athlete.repository";
 import { RecalculationService } from "../services/recalculation.service";
 import { SplitCalculatorProcessor } from "../processors/split-calculator/split-calculator.processor";
 import { SplitRequest } from "@elevate/shared/models/splits/split-request.model";
+import { intervalsConnector } from "./sync.routes";
 
 export const activitiesRouter = Router();
 const activitiesRepo = new ActivitiesRepository();
@@ -29,6 +30,19 @@ activitiesRouter.get("/:id", async (req, res) => {
     return;
   }
   res.json(activity);
+});
+
+/**
+ * Re-fetches an activity and recomputes it against currently athlete settings
+ */
+activitiesRouter.post("/:id/resync", async (req, res) => {
+  try {
+    await intervalsConnector.resyncActivity(req.params.id);
+    const updated = await activitiesRepo.getById(req.params.id);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 activitiesRouter.get("/:id/streams", async (req, res) => {

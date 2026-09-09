@@ -192,6 +192,43 @@ export class IntervalsConnector {
   }
 
   /**
+   * Re-fetches an activity and recomputes it against currently athlete settings
+   */
+  @LogMethod()
+  public async resyncActivity(activityId: string): Promise<void> {
+    const settings = await this.settingsRepo.get();
+    if (!settings?.apiKey) {
+      throw new Error("intervals.icu is not configured - missing API key");
+    }
+
+    const client = new IntervalsApiClient(settings.apiKey);
+    const [detail, streamEntries] = await Promise.all([
+      client.getActivity(activityId),
+      client.getStreams(activityId).catch(() => [] as IntervalsStreamEntry[])
+    ]);
+
+    const streams = this.mapStreams(streamEntries);
+    const activity = this.mapToActivity(detail);
+
+    const athleteModel = await this.athleteRepo.getAthleteModel();
+    const athleteSnapshotResolver = new AthleteSnapshotResolver(athleteModel);
+    const athleteSnapshot: AthleteSnapshot = athleteSnapshotResolver.resolve(new Date(activity.startTime));
+    const userSettings: UserSettings.BaseUserSettings = UserSettings.getDefaultsByBuildTarget(BuildTarget.DESKTOP);
+
+    const { computedActivity, deflatedStreams } = await ActivityComputeProcessor.compute(
+      activity,
+      athleteSnapshot,
+      userSettings,
+      streams,
+      true, // deflateStreams
+      true, // returnPeaks
+      true // returnZones
+    );
+
+    await this.activitiesRepo.upsert(computedActivity, deflatedStreams);
+  }
+
+  /**
    * Maps an intervals.icu activity onto Elevate's Activity model.
    */
   @LogMethod()
@@ -218,10 +255,10 @@ export class IntervalsConnector {
       notes: source.description ?? null,
       laps: this.mapToLaps(source.icu_intervals, (source.type as ElevateSport) ?? ElevateSport.Other),
       srcStats: {
-        distance: source.distance ?? null,
-        movingTime: movingTimeSec,
-        elapsedTime: elapsedTimeSec,
-        calories: source.calories ?? null
+        ...(source.distance != null && { distance: source.distance }),
+        ...(movingTimeSec != null && { movingTime: movingTimeSec }),
+        ...(elapsedTimeSec != null && { elapsedTime: elapsedTimeSec }),
+        ...(source.calories != null && { calories: source.calories })
       } as any
     };
   }
