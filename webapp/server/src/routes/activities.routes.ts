@@ -23,6 +23,13 @@ activitiesRouter.get("/", async (req, res) => {
   res.json({ items, total, limit, offset });
 });
 
+// Registered before /:id below - otherwise Express's param route would
+// match "sports" as an activity id first.
+activitiesRouter.get("/sports", async (_req, res) => {
+  const summary = await activitiesRepo.getSportsSummary();
+  res.json(summary);
+});
+
 activitiesRouter.get("/:id", async (req, res) => {
   const activity = await activitiesRepo.getById(req.params.id);
   if (!activity) {

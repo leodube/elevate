@@ -10,6 +10,8 @@ import { AthleteSnapshotResolverService } from "../../athlete-snapshot-resolver/
 import { LoggerService } from "../../logging/logger.service";
 import { ActivityService } from "../activity.service";
 import { environment } from "../../../../../environments/environment";
+import { ActivityCountByType } from "../../../models/activity/activity-count-by-type.model";
+import { ElevateSport } from "@elevate/shared/enums/elevate-sport.enum";
 interface ActivitiesListResponse {
   items: Activity[];
   total: number;
@@ -35,11 +37,17 @@ interface ActivitiesListResponse {
  * these will silently act as if there's no local data):
  *   - findByIds(), findSince(), findByDatedSession()
  *   - insert/insertMany/update/put/removeById/removeByManyIds/clear
- *   - countByType(), countWithConnector() - countByType() in particular
- *     means the activities page's sport filter dropdown starts empty;
- *     it's a synchronous call in ActivitiesComponent's constructor, which
- *     doesn't fit an HTTP-backed implementation without a bigger change
- *     to that component. Flagged for a follow-up, not fixed here.
+ *   - countByType(), countWithConnector() - countByType() is still not
+ *     overridden (it's a synchronous call, and ActivitiesComponent's
+ *     constructor calls it synchronously - not a fit for an HTTP-backed
+ *     implementation without changing that call site's shape). The sport
+ *     filter dropdown this fed is no longer stuck empty though: see
+ *     fetchSportsSummary() below, a separate async method (like
+ *     computeSplit()) that ActivitiesComponent now calls instead, backed
+ *     by a dedicated GET /api/activities/sports endpoint rather than
+ *     derived from whatever page of activities happens to be loaded -
+ *     deliberately, so this keeps returning every sport ever synced once
+ *     the activity list itself grows real server-side pagination.
  *   - createManualEntry() - manual entry doesn't map cleanly onto a
  *     server whose sole data source is intervals.icu; out of v1 scope
  *
@@ -76,6 +84,13 @@ export class WebappActivityService extends ActivityService {
     @Inject(HttpClient) private readonly httpClient: HttpClient
   ) {
     super(activityDao, athleteSnapshotResolver, logger);
+  }
+
+  public fetchSportsSummary(): Promise<ActivityCountByType[]> {
+    const url = `${environment.backendBaseUrl}/api/activities/sports`;
+    return firstValueFrom(this.httpClient.get<{ type: string; count: number }[]>(url, { withCredentials: true })).then(
+      summary => summary.map(item => ({ type: item.type as ElevateSport, count: item.count }))
+    );
   }
 
   public computeSplit(splitRequest: SplitRequest): Promise<SplitResponse> {

@@ -21,6 +21,7 @@ import { WebappHttpInterceptor } from "../../../webapp/auth/webapp-http.intercep
 import { HTTP_INTERCEPTORS } from "@angular/common/http";
 import { WebappLoginComponent } from "../../../webapp/login/webapp-login.component";
 import { WebappConnectorsComponent } from "../../../webapp/connectors/webapp-connectors.component";
+import { WebappActivitiesViewPreferencesService } from "../../../webapp/activities/webapp-activities-view-preferences.service";
 
 /**
  * The DI seam for the webapp target - mirrors DesktopTargetModule /
@@ -42,9 +43,11 @@ import { WebappConnectorsComponent } from "../../../webapp/connectors/webapp-con
     { provide: UserSettingsService, useClass: WebappUserSettingsService },
     { provide: DataStore, useClass: WebappDataStore },
     { provide: ActivityService, useClass: WebappActivityService },
+    { provide: WebappActivityService, useExisting: ActivityService },
     { provide: VersionsProvider, useClass: WebappVersionsProvider },
     { provide: OPEN_RESOURCE_RESOLVER, useClass: WebappOpenResourceResolver },
-    { provide: SyncService, useClass: WebappSyncService }
+    { provide: SyncService, useClass: WebappSyncService },
+    WebappActivitiesViewPreferencesService
   ]
 })
 export class TargetModule {}

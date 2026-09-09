@@ -31,6 +31,11 @@ export interface ActivityDetail extends Activity {
   streamsAvailable: boolean;
 }
 
+export interface ActivitySportsSummaryItem {
+  type: string;
+  count: number;
+}
+
 export class ActivitiesRepository {
   /**
    * Used for incremental sync dedup, mirroring the desktop connector's
@@ -39,6 +44,22 @@ export class ActivitiesRepository {
   public async exists(activityId: string): Promise<boolean> {
     const result = await pool.query("SELECT 1 FROM activities WHERE id = $1", [activityId]);
     return result.rowCount > 0;
+  }
+
+  /**
+   * Distinct activity types with counts, for the activities view's "Filter
+   * by sports" dropdown. A dedicated query (GROUP BY on the whole table)
+   * rather than deriving the list from whatever page of activities the
+   * client currently has loaded - the dropdown should list every sport
+   * ever synced, not just the ones present in the current page/limit, and
+   * this stays correct if/when list() grows real server-side pagination.
+   * Ordered by count desc, matching desktop's ActivityService.countByType().
+   */
+  public async getSportsSummary(): Promise<ActivitySportsSummaryItem[]> {
+    const result = await pool.query(
+      "SELECT type, count(*)::int AS count FROM activities GROUP BY type ORDER BY count DESC"
+    );
+    return result.rows.map((row) => ({ type: row.type, count: row.count }));
   }
 
   /**

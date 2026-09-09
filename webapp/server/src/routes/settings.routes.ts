@@ -3,10 +3,12 @@ import { PracticeLevel } from "@elevate/shared/models/athlete/athlete-level.enum
 import { Router } from "express";
 import { AthleteModelInput, AthleteRepository, DatedAthleteSettingsInput } from "../repositories/athlete.repository";
 import { IntervalsSettingsRepository } from "../repositories/intervals-settings.repository";
+import { ActivitiesViewPreferencesRepository } from "../repositories/activities-view-preferences.repository";
 
 export const settingsRouter = Router();
 const settingsRepo = new IntervalsSettingsRepository();
 const athleteRepo = new AthleteRepository();
+const activitiesViewPreferencesRepo = new ActivitiesViewPreferencesRepository();
 
 settingsRouter.get("/intervals-connector", async (_req, res) => {
   const settings = await settingsRepo.get();
@@ -80,3 +82,28 @@ settingsRouter.put("/athlete-model", async (req, res) => {
 function numOrNull(value: unknown): number | null {
   return typeof value === "number" && !Number.isNaN(value) ? value : null;
 }
+
+settingsRouter.get("/activities-view", async (_req, res) => {
+  const preferences = await activitiesViewPreferencesRepo.get();
+  res.json(preferences);
+});
+
+settingsRouter.put("/activities-view/sports", async (req, res) => {
+  const { selectedSports } = req.body ?? {};
+  if (!Array.isArray(selectedSports) || selectedSports.some((s: unknown) => typeof s !== "string")) {
+    res.status(400).json({ error: "selectedSports must be an array of strings" });
+    return;
+  }
+  await activitiesViewPreferencesRepo.updateSelectedSports(selectedSports);
+  res.status(200).json({ ok: true });
+});
+
+settingsRouter.put("/activities-view/columns", async (req, res) => {
+  const { selectedColumns } = req.body ?? {};
+  if (!Array.isArray(selectedColumns) || selectedColumns.some((c: unknown) => typeof c !== "string")) {
+    res.status(400).json({ error: "selectedColumns must be an array of strings" });
+    return;
+  }
+  await activitiesViewPreferencesRepo.updateSelectedColumns(selectedColumns);
+  res.status(200).json({ ok: true });
+});
