@@ -20,6 +20,20 @@ import { ActivitiesRepository } from "../repositories/activities.repository";
 import { AthleteRepository } from "../repositories/athlete.repository";
 import { IntervalsSettingsRepository } from "../repositories/intervals-settings.repository";
 import { LogMethod } from "../tools/decorators";
+import { Activity as SportsLibActivity } from "@thomaschampagne/sports-lib/lib/activities/activity";
+import { Creator } from "@thomaschampagne/sports-lib/lib/creators/creator";
+import { ActivityTypes } from "@thomaschampagne/sports-lib/lib/activities/activity.types";
+import { ActivityParsingOptions } from "@thomaschampagne/sports-lib/lib/activities/activity-parsing-options";
+import { ActivityUtilities } from "@thomaschampagne/sports-lib/lib/events/utilities/activity.utilities";
+import { Stream as SportsLibStream } from "@thomaschampagne/sports-lib/lib/streams/stream";
+import { DataTime } from "@thomaschampagne/sports-lib/lib/data/data.time";
+import { DataDistance as SportsLibDataDistance } from "@thomaschampagne/sports-lib/lib/data/data.distance";
+import { DataGNSSDistance } from "@thomaschampagne/sports-lib/lib/data/data.gnss-distance";
+import { DataSpeed } from "@thomaschampagne/sports-lib/lib/data/data.speed";
+import { DataAltitude } from "@thomaschampagne/sports-lib/lib/data/data.altitude";
+import { DataHeartRate } from "@thomaschampagne/sports-lib/lib/data/data.heart-rate";
+import { DataLatitudeDegrees } from "@thomaschampagne/sports-lib/lib/data/data.latitude-degrees";
+import { DataLongitudeDegrees } from "@thomaschampagne/sports-lib/lib/data/data.longitude-degrees";
 
 export interface SyncResult {
   activitiesProcessed: number;
@@ -145,7 +159,7 @@ export class IntervalsConnector {
             client.getStreams(bare.id).catch(() => [] as IntervalsStreamEntry[])
           ]);
 
-          const streams = this.mapStreams(streamEntries);
+          const streams = this.mapStreams(streamEntries, detail);
           const activity = this.mapToActivity(detail);
 
           const startTimestamp = activity.startTimestamp;
@@ -170,7 +184,7 @@ export class IntervalsConnector {
           latestProcessedTimestamp = startTimestamp;
         } catch (err) {
           this.progress.errors.push({ activityId: bare.id, message: (err as Error).message });
-          // Stop advancing on first failure, on purpose - see prior discussion.
+          // Stop advancing on first failure
           break;
         }
       }
@@ -207,7 +221,7 @@ export class IntervalsConnector {
       client.getStreams(activityId).catch(() => [] as IntervalsStreamEntry[])
     ]);
 
-    const streams = this.mapStreams(streamEntries);
+    const streams = this.mapStreams(streamEntries, detail);
     const activity = this.mapToActivity(detail);
 
     const athleteModel = await this.athleteRepo.getAthleteModel();
@@ -258,6 +272,14 @@ export class IntervalsConnector {
         ...(source.distance != null && { distance: source.distance }),
         ...(movingTimeSec != null && { movingTime: movingTimeSec }),
         ...(elapsedTimeSec != null && { elapsedTime: elapsedTimeSec }),
+        ...(elapsedTimeSec > 0 && {
+          moveRatio: movingTimeSec / elapsedTimeSec,
+          pauseTime: elapsedTimeSec - movingTimeSec
+        }),
+        ...(source.distance != null &&
+          movingTimeSec > 0 && {
+            speed: { avg: (source.distance / movingTimeSec) * Constant.MPS_KPH_FACTOR }
+          }),
         ...(source.calories != null && { calories: source.calories })
       } as any
     };
@@ -305,13 +327,10 @@ export class IntervalsConnector {
 
   /**
    * Maps intervals.icu's streams.json array-of-{type,data} shape onto
-   * Elevate's Streams model. Field names for common streams (time,
-   * distance, heartrate, cadence, altitude, latlng, grade_smooth, temp)
-   * match Strava's/Elevate's own naming directly since we explicitly
-   * request those exact type names in getStreams().
+   * Elevate's Streams model.
    */
   @LogMethod()
-  private mapStreams(entries: IntervalsStreamEntry[]): Streams {
+  private mapStreams(entries: IntervalsStreamEntry[], detail: IntervalsActivity): Streams {
     const streams = new Streams();
     for (const entry of entries) {
       if (entry.type === "latlng") {
@@ -320,7 +339,178 @@ export class IntervalsConnector {
       }
       (streams as any)[entry.type] = entry.data;
     }
+    this.applySportsLibProcessing(streams, entries, detail);
     return streams;
+  }
+
+  /**
+   * Runs distance/speed through the @thomaschampagne/sports-lib processing pipeline
+   */
+  private applySportsLibProcessing(streams: Streams, entries: IntervalsStreamEntry[], detail: IntervalsActivity): void {
+    if (!streams.distance?.length || !streams.time?.length) {
+      return;
+    }
+
+    try {
+      const byType: Record<string, IntervalsStreamEntry> = {};
+      for (const entry of entries) {
+        byType[entry.type] = entry;
+      }
+
+      const originalTime = streams.time;
+      const elapsedSeconds = originalTime[originalTime.length - 1];
+      if (elapsedSeconds == null || elapsedSeconds < 0) {
+        return;
+      }
+
+      const toDense = (data: (number | null)[] | undefined): (number | null)[] | undefined => {
+        if (!data) {
+          return undefined;
+        }
+        const dense: (number | null)[] = new Array(elapsedSeconds + 1).fill(null);
+        for (let i = 0; i < data.length; i++) {
+          const t = originalTime[i];
+          if (t != null && t >= 0 && t <= elapsedSeconds) {
+            dense[t] = data[i];
+          }
+        }
+        return dense;
+      };
+      const fromDense = (dense: (number | null)[] | undefined): (number | null)[] | undefined => {
+        if (!dense) {
+          return undefined;
+        }
+        return originalTime.map(t => (t != null && t >= 0 && t <= elapsedSeconds ? dense[t] : null));
+      };
+
+      const startDate = new Date(detail.start_date);
+      const endDate = new Date(startDate.getTime() + elapsedSeconds * 1000);
+      const activityType = (ActivityTypes as any)[detail.type] ?? ActivityTypes.Other;
+
+      const parsingOptions = new ActivityParsingOptions({
+        streams: {
+          smooth: { altitudeSmooth: true, grade: true, gradeSmooth: true },
+          fixAbnormal: { speed: true }
+        },
+        maxActivityDurationDays: 30
+      });
+
+      const sportsLibActivity = new SportsLibActivity(
+        startDate,
+        endDate,
+        activityType,
+        new Creator("intervals.icu"),
+        parsingOptions
+      );
+
+      const denseTime = Array.from({ length: elapsedSeconds + 1 }, (_, i) => i);
+      sportsLibActivity.addStream(new SportsLibStream(DataTime.type, denseTime));
+
+      const denseDistance = toDense(byType.distance?.data as (number | null)[] | undefined);
+      if (denseDistance) {
+        sportsLibActivity.addStream(new SportsLibStream(SportsLibDataDistance.type, denseDistance));
+      }
+      const denseSpeed = toDense(byType.velocity_smooth?.data as (number | null)[] | undefined);
+      if (denseSpeed) {
+        sportsLibActivity.addStream(new SportsLibStream(DataSpeed.type, denseSpeed));
+      }
+      const denseAltitude = toDense(byType.altitude?.data as (number | null)[] | undefined);
+      if (denseAltitude) {
+        sportsLibActivity.addStream(new SportsLibStream(DataAltitude.type, denseAltitude));
+      }
+      const denseHeartrate = toDense(byType.heartrate?.data as (number | null)[] | undefined);
+      if (denseHeartrate) {
+        sportsLibActivity.addStream(new SportsLibStream(DataHeartRate.type, denseHeartrate));
+      }
+      // intervals.icu splits latlng as data=lat, data2=lng, not paired [lat,lng]
+      if (byType.latlng) {
+        const denseLat = toDense(byType.latlng.data as (number | null)[] | undefined);
+        const denseLng = toDense(byType.latlng.data2 as (number | null)[] | undefined);
+        if (denseLat) {
+          sportsLibActivity.addStream(new SportsLibStream(DataLatitudeDegrees.type, denseLat));
+        }
+        if (denseLng) {
+          sportsLibActivity.addStream(new SportsLibStream(DataLongitudeDegrees.type, denseLng));
+        }
+      }
+
+      ActivityUtilities.generateMissingStreamsAndStatsForActivity(sportsLibActivity);
+
+      if (sportsLibActivity.hasStreamData(DataGNSSDistance.type)) {
+        const sparseDistance = fromDense(sportsLibActivity.getStreamData(DataGNSSDistance.type) as (number | null)[]);
+        if (sparseDistance) {
+          streams.distance = IntervalsConnector.fillIsolatedNulls(sparseDistance, originalTime);
+        }
+      }
+      if (sportsLibActivity.hasStreamData(DataSpeed.type)) {
+        const sparseSpeed = fromDense(sportsLibActivity.getStreamData(DataSpeed.type) as (number | null)[]);
+        if (sparseSpeed) {
+          streams.velocity_smooth = sparseSpeed as number[];
+        }
+      }
+    } catch (err) {
+      // Leave streams as intervals.icu returned them
+    }
+  }
+
+  /**
+   * sports-lib's GNSS-distance generation (createDerivedStreams, in generateMissingStreamsForActivity)
+   * skips any index where position is null rather than filling it - `if (!position) return
+   * prevPosition` - and never writes that index, leaving it at Stream's default null. The
+   * native distance field doesn't have this failure mode (it apparently fuses other sensors
+   * and never drops a sample), so this problem is specific to preferring DataGNSSDistance.
+   *
+   * Confirmed against real activity data: a single momentary GPS dropout (lat/lng both null
+   * for one sample, everything else around it fine) produced exactly one stray null in the
+   * re-sparsified distance stream. A single null x-coordinate feeding a spline-shaped chart
+   * trace produced a dramatic full-width visual artifact - regressed a previously-clean
+   * Garmin activity's distance-scale chart after switching from native to GNSS distance.
+   *
+   * This fills only isolated interior null runs via linear (time-weighted) interpolation
+   * between the nearest real neighbors - deliberately not the general noise/duplicate cleanup
+   * from the previous approach, just closing the specific gap sports-lib's own generation
+   * leaves behind. Leading/trailing null runs (no anchor on one side) are edge-filled from the
+   * nearest real value instead, same as before.
+   */
+  private static fillIsolatedNulls(values: (number | null)[], time: number[]): number[] {
+    const filled = values.slice();
+
+    const firstValid = filled.findIndex(value => value != null);
+    if (firstValid === -1) {
+      return filled as number[];
+    }
+    for (let i = 0; i < firstValid; i++) {
+      filled[i] = filled[firstValid];
+    }
+    const lastValid = filled.length - 1 - [...filled].reverse().findIndex(value => value != null);
+    for (let i = lastValid + 1; i < filled.length; i++) {
+      filled[i] = filled[lastValid];
+    }
+
+    let anchor = firstValid;
+    let i = anchor + 1;
+    while (i <= lastValid) {
+      if (filled[i] != null) {
+        anchor = i;
+        i++;
+        continue;
+      }
+      let nextValid = i + 1;
+      while (filled[nextValid] == null) {
+        nextValid++;
+      }
+      const startValue = filled[anchor] as number;
+      const endValue = filled[nextValid] as number;
+      const totalSpan = time[nextValid] - time[anchor];
+      for (let j = anchor + 1; j < nextValid; j++) {
+        const frac = totalSpan > 0 ? (time[j] - time[anchor]) / totalSpan : 0;
+        filled[j] = startValue + frac * (endValue - startValue);
+      }
+      anchor = nextValid;
+      i = nextValid + 1;
+    }
+
+    return filled as number[];
   }
 
   /**
