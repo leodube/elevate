@@ -165,7 +165,7 @@ export class IntervalsConnector {
           const startTimestamp = activity.startTimestamp;
           const athleteSnapshot: AthleteSnapshot = athleteSnapshotResolver.resolve(new Date(startTimestamp * 1000));
           const userSettings: UserSettings.BaseUserSettings = UserSettings.getDefaultsByBuildTarget
-            ? UserSettings.getDefaultsByBuildTarget(BuildTarget.DESKTOP)
+            ? UserSettings.getDefaultsByBuildTarget(BuildTarget.WEBAPP)
             : ({} as UserSettings.BaseUserSettings);
 
           const { computedActivity, deflatedStreams } = await ActivityComputeProcessor.compute(
@@ -227,7 +227,7 @@ export class IntervalsConnector {
     const athleteModel = await this.athleteRepo.getAthleteModel();
     const athleteSnapshotResolver = new AthleteSnapshotResolver(athleteModel);
     const athleteSnapshot: AthleteSnapshot = athleteSnapshotResolver.resolve(new Date(activity.startTime));
-    const userSettings: UserSettings.BaseUserSettings = UserSettings.getDefaultsByBuildTarget(BuildTarget.DESKTOP);
+    const userSettings: UserSettings.BaseUserSettings = UserSettings.getDefaultsByBuildTarget(BuildTarget.WEBAPP);
 
     const { computedActivity, deflatedStreams } = await ActivityComputeProcessor.compute(
       activity,

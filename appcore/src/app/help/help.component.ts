@@ -36,7 +36,8 @@ export class HelpComponent implements OnInit {
   private static readonly TARGET_RELATIVE_FAQ_DOC_PATH_MAP: Map<string, string> = new Map<string, string>([
     ["common", "Frequently-Asked-Questions/All-Platforms"],
     ["desktop", "Frequently-Asked-Questions/Desktop-App"],
-    ["extension", "Frequently-Asked-Questions/Web-Extension"]
+    ["extension", "Frequently-Asked-Questions/Web-Extension"],
+    ["webapp", "Frequently-Asked-Questions/Desktop-App"]
   ]);
 
   public markDownParser: MarkDownIt;

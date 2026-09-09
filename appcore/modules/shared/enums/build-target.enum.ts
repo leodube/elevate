@@ -1,4 +1,5 @@
 export enum BuildTarget {
   DESKTOP,
-  EXTENSION
+  EXTENSION,
+  WEBAPP
 }

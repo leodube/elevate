@@ -3,16 +3,19 @@ import { UserSettingsDao } from "../../../dao/user-settings/user-settings.dao";
 import { LoggerService } from "../../logging/logger.service";
 import { UserSettingsService } from "../user-settings.service";
 import { UserSettings } from "@elevate/shared/models/user-settings/user-settings.namespace";
+import { BuildTarget } from "@elevate/shared/enums/build-target.enum";
 
 /**
- * fetch() returns a fixed default (DesktopUserSettings.DEFAULT_MODEL,
- * cloned) rather than something persisted server-side. This is a
- * deliberate scoping choice, not an oversight: the webapp menu has no
- * Global Settings or Zone Settings page yet (out of v1 scope), so there's
- * currently no UI anywhere that could change these values - building
- * real backend persistence for settings nothing can edit yet would be
- * wasted schema/endpoint work. This unblocks the activity view (which
- * reads units/zones for display) without that cost.
+ * fetch() returns a fixed default (UserSettings.getDefaultsByBuildTarget(),
+ * effectively desktop's DEFAULT_MODEL under the hood - see that function -
+ * but now correctly tagged buildTarget: WEBAPP) rather than something
+ * persisted server-side. This is a deliberate scoping choice, not an
+ * oversight: the webapp menu has no Global Settings or Zone Settings page
+ * yet (out of v1 scope), so there's currently no UI anywhere that could
+ * change these values - building real backend persistence for settings
+ * nothing can edit yet would be wasted schema/endpoint work. This unblocks
+ * the activity view (which reads units/zones for display) without that
+ * cost.
  *
  * updateOption()/updateZones()/resetGlobalSettings()/resetZonesSettings()
  * are NOT overridden - they call userSettingsDao methods directly rather
@@ -31,6 +34,6 @@ export class WebappUserSettingsService extends UserSettingsService {
   }
 
   public fetch(): Promise<UserSettings.BaseUserSettings> {
-    return Promise.resolve(structuredClone(UserSettings.DesktopUserSettings.DEFAULT_MODEL));
+    return Promise.resolve(UserSettings.getDefaultsByBuildTarget(BuildTarget.WEBAPP));
   }
 }

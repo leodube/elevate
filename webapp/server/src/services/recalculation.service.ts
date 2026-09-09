@@ -65,7 +65,7 @@ export class RecalculationService {
     try {
       const athleteModel = await this.athleteRepo.getAthleteModel();
       const athleteSnapshotResolver = new AthleteSnapshotResolver(athleteModel);
-      const userSettings = UserSettings.getDefaultsByBuildTarget(BuildTarget.DESKTOP);
+      const userSettings = UserSettings.getDefaultsByBuildTarget(BuildTarget.WEBAPP);
 
       for (const activityId of activityIds) {
         try {
