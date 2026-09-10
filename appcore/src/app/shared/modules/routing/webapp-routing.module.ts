@@ -30,6 +30,11 @@ const routes: Routes = [
       )
   },
   {
+    path: AppRoutes.fitnessTrend,
+    canActivate: [WebappAuthGuard],
+    loadChildren: () => import("../../../fitness-trend/fitness-trend.module").then(module => module.FitnessTrendModule)
+  },
+  {
     path: AppRoutes.connectors,
     canActivate: [WebappAuthGuard],
     component: WebappConnectorsComponent
