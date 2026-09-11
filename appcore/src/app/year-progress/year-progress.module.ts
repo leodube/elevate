@@ -7,7 +7,6 @@ import { YearProgressHelperDialogComponent } from "./year-progress-helper-dialog
 import { YearProgressOverviewDialogComponent } from "./year-progress-overview-dialog/year-progress-overview-dialog.component";
 import { YearProgressService } from "./shared/services/year-progress.service";
 import { YearProgressRoutingModule } from "./year-progress-routing.module";
-import { YearProgressPresetDao } from "./shared/dao/year-progress-preset.dao";
 import { AddYearProgressPresetDialogComponent } from "./add-year-progress-presets-dialog/add-year-progress-preset-dialog.component";
 import { ManageYearProgressPresetsDialogComponent } from "./manage-year-progress-presets-dialog/manage-year-progress-presets-dialog.component";
 import { YearProgressUserGuideComponent } from "./year-progress-user-guide/year-progress-user-guide.component";
@@ -24,6 +23,6 @@ import { YearProgressUserGuideComponent } from "./year-progress-user-guide/year-
     ManageYearProgressPresetsDialogComponent,
     YearProgressUserGuideComponent
   ],
-  providers: [YearProgressService, YearProgressPresetDao]
+  providers: [YearProgressService]
 })
 export class YearProgressModule {}

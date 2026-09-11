@@ -9,6 +9,7 @@ import { activitiesRouter } from "./routes/activities.routes";
 import { authRouter } from "./routes/auth.routes";
 import { settingsRouter } from "./routes/settings.routes";
 import { intervalsConnector, syncRouter } from "./routes/sync.routes";
+import { yearProgressRouter } from "./routes/year-progress.routes";
 import { logger } from "./tools/logger";
 
 const BACKGROUND_SYNC_INTERVAL_MS = 2 * 60 * 60 * 1000;
@@ -28,6 +29,7 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/sync", requireAuth, syncRouter);
 app.use("/api/settings", requireAuth, settingsRouter);
 app.use("/api/activities", requireAuth, activitiesRouter);
+app.use("/api/year-progress", requireAuth, yearProgressRouter);
 
 async function start(): Promise<void> {
   try {

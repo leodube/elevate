@@ -24,6 +24,8 @@ import { SPLASH_SCREEN_COMPONENT } from "../app-load/splash-screen.component";
 import { WebappElevateErrorHandler } from "../errors-handler/webapp-elevate-error-handler";
 import { StreamsService } from "../shared/services/streams/streams.service";
 import { WebappStreamsService } from "../shared/services/streams/impl/webapp-streams.service";
+import { YearProgressPresetDao } from "../year-progress/shared/dao/year-progress-preset.dao";
+import { WebappYearProgressPresetDao } from "../year-progress/shared/dao/webapp-year-progress-preset.dao";
 
 @NgModule({
   imports: [CoreModule, WebappRoutingModule],
@@ -49,7 +51,8 @@ import { WebappStreamsService } from "../shared/services/streams/impl/webapp-str
     { provide: TOP_BAR_COMPONENT, useValue: WebappTopBarComponent },
     { provide: APP_MORE_MENU_COMPONENT, useValue: WebappAppMoreMenuComponent },
     { provide: SYNC_MENU_COMPONENT, useValue: WebappSyncMenuComponent },
-    { provide: StreamsService, useClass: WebappStreamsService }
+    { provide: StreamsService, useClass: WebappStreamsService },
+    { provide: YearProgressPresetDao, useClass: WebappYearProgressPresetDao }
   ]
 })
 export class TargetBootModule {}
