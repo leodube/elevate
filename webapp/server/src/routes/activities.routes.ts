@@ -4,6 +4,8 @@ import { AthleteRepository } from "../repositories/athlete.repository";
 import { RecalculationService } from "../services/recalculation.service";
 import { SplitCalculatorProcessor } from "../processors/split-calculator/split-calculator.processor";
 import { SplitRequest } from "@elevate/shared/models/splits/split-request.model";
+import { Streams } from "@elevate/shared/models/activity-data/streams.model";
+import { SplitRequestType } from "@elevate/shared/models/splits/split-request-type.enum";
 import { intervalsConnector } from "./sync.routes";
 
 export const activitiesRouter = Router();
@@ -92,17 +94,44 @@ activitiesRouter.get("/recalculate/status", (_req, res) => {
 
 const splitCalculator = new SplitCalculatorProcessor();
 
+const CHERRY_PICKED_STREAM_KEYS: (keyof Streams)[] = ["velocity_smooth", "heartrate", "watts", "cadence"];
+
 activitiesRouter.post("/compute-split", async (req, res) => {
-  const splitRequest = req.body as SplitRequest;
+  const { activityId, type, range } = req.body ?? {};
+
   if (
-    typeof splitRequest?.type !== "number" ||
-    typeof splitRequest?.range !== "number" ||
-    !Array.isArray(splitRequest?.scaleStream) ||
-    !Array.isArray(splitRequest?.dataStreams)
+    (typeof activityId !== "string" && typeof activityId !== "number") ||
+    typeof type !== "number" ||
+    typeof range !== "number"
   ) {
     res.status(400).json({ error: "Invalid split request" });
     return;
   }
+
+  const id = String(activityId);
+  const deflated = await activitiesRepo.getStreamsDeflated(id);
+  if (deflated === null) {
+    res.status(404).json({ error: "No streams stored for this activity" });
+    return;
+  }
+
+  const activity = await activitiesRepo.getById(id);
+  if (!activity) {
+    res.status(404).json({ error: "Activity not found" });
+    return;
+  }
+
+  const streams = Streams.inflate(deflated);
+  const splitRequest: SplitRequest = {
+    type,
+    sport: activity.type,
+    range,
+    scaleStream: type === SplitRequestType.TIME ? streams.time : streams.distance,
+    dataStreams: CHERRY_PICKED_STREAM_KEYS.filter(key => streams[key]).map(key => ({
+      streamKey: key,
+      stream: streams[key] as number[]
+    }))
+  };
 
   try {
     const response = await splitCalculator.computeSplits(splitRequest);

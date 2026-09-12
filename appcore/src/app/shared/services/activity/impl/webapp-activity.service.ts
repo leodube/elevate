@@ -93,9 +93,15 @@ export class WebappActivityService extends ActivityService {
     );
   }
 
-  public computeSplit(splitRequest: SplitRequest): Promise<SplitResponse> {
+  public computeSplit(splitRequest: SplitRequest, activityId?: number | string): Promise<SplitResponse> {
     const url = `${environment.backendBaseUrl}/api/activities/compute-split`;
-    return firstValueFrom(this.httpClient.post<SplitResponse>(url, splitRequest, { withCredentials: true }));
+    const body = {
+      activityId,
+      type: splitRequest.type,
+      sport: splitRequest.sport,
+      range: splitRequest.range
+    };
+    return firstValueFrom(this.httpClient.post<SplitResponse>(url, body, { withCredentials: true }));
   }
 
   public isAthleteSettingsConsistent(): Promise<boolean> {
