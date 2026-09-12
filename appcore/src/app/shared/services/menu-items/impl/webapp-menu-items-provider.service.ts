@@ -26,6 +26,11 @@ export class WebappMenuItemsProvider implements MenuItemsProvider {
       routerLinkActive: true
     },
     {
+      icon: "format_line_spacing",
+      routerLink: AppRoutes.zonesSettings,
+      routerLinkActive: true
+    },
+    {
       icon: "sync",
       routerLink: AppRoutes.connectors,
       routerLinkActive: true

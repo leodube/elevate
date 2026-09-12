@@ -1,4 +1,4 @@
-<mat-card *ngIf="activity">
+<mat-card *ngIf="activity && userSettings">
   <div class="warn-note flags" *ngIf="displayFlags && activity.flags?.length" fxLayout="row"
        fxLayoutAlign="space-between center">
     <div>

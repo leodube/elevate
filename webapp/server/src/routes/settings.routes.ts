@@ -4,11 +4,13 @@ import { Router } from "express";
 import { AthleteModelInput, AthleteRepository, DatedAthleteSettingsInput } from "../repositories/athlete.repository";
 import { IntervalsSettingsRepository } from "../repositories/intervals-settings.repository";
 import { ActivitiesViewPreferencesRepository } from "../repositories/activities-view-preferences.repository";
+import { isKnownZoneType, UserZonesRepository } from "../repositories/user-zones.repository";
 
 export const settingsRouter = Router();
 const settingsRepo = new IntervalsSettingsRepository();
 const athleteRepo = new AthleteRepository();
 const activitiesViewPreferencesRepo = new ActivitiesViewPreferencesRepository();
+const userZonesRepo = new UserZonesRepository();
 
 settingsRouter.get("/intervals-connector", async (_req, res) => {
   const settings = await settingsRepo.get();
@@ -29,10 +31,6 @@ settingsRouter.put("/intervals-connector", async (req, res) => {
   await settingsRepo.upsertCredentials(apiKey, typeof athleteId === "string" ? athleteId : null);
   res.status(200).json({ ok: true });
 });
-
-// --- Athlete model (matches AthleteService.fetch()/update()'s whole-model
-// contract exactly - the reused desktop UI always sends/expects the full
-// AthleteModel, not per-field or per-entry granular updates) ---
 
 settingsRouter.get("/athlete-model", async (_req, res) => {
   const athleteModel = await athleteRepo.getAthleteModel();
@@ -106,4 +104,26 @@ settingsRouter.put("/activities-view/columns", async (req, res) => {
   }
   await activitiesViewPreferencesRepo.updateSelectedColumns(selectedColumns);
   res.status(200).json({ ok: true });
+});
+
+settingsRouter.get("/zones", async (_req, res) => {
+  const zones = await userZonesRepo.get();
+  res.json(zones);
+});
+
+settingsRouter.put("/zones/:zoneType", async (req, res) => {
+  const { zoneType } = req.params;
+  if (!isKnownZoneType(zoneType)) {
+    res.status(400).json({ error: `Unknown zone type: ${zoneType}` });
+    return;
+  }
+
+  const { values } = req.body ?? {};
+  if (!Array.isArray(values) || values.some((v: unknown) => typeof v !== "number" || Number.isNaN(v))) {
+    res.status(400).json({ error: "values must be an array of numbers" });
+    return;
+  }
+
+  const updated = await userZonesRepo.updateZoneType(zoneType, values);
+  res.json(updated);
 });
