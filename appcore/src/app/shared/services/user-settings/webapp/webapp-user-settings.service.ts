@@ -14,27 +14,32 @@ import { environment } from "../../../../../environments/environment";
 /**
  * fetch() merges a fixed default (UserSettings.getDefaultsByBuildTarget(),
  * tagged buildTarget: WEBAPP) for everything in BaseUserSettings EXCEPT
- * zones, which now comes from webapp/server's /api/settings/zones -
- * that's real, persisted state, not a default. Scoped to zones
- * specifically because that's the only part of BaseUserSettings the Zone
- * Settings page (the only page reading/writing settings so far) actually
- * touches - see ZonesService, which only ever calls fetch()/updateZones().
+ * zones and the 4 options GlobalSettingsService exposes for webapp
+ * (systemUnit, temperatureUnit, disableMissingStressScoresWarning,
+ * disableActivitiesNeedRecalculationWarning) - those come from
+ * webapp/server's /api/settings/zones and /api/settings/options, real
+ * persisted state rather than defaults. Scoped to exactly those because
+ * that's all the pages that read/write settings so far actually touch -
+ * ZonesService only calls fetch()/updateZones(), GlobalSettingsComponent
+ * only calls fetch()/updateOption() with one of those 4 keys (every other
+ * section in GlobalSettingsService.sections is tagged DESKTOP/EXTENSION-
+ * only and never reaches a webapp instance of this component).
  *
- * updateZones() is HTTP-backed the same way, PUT-ing one zone type at a
- * time against /api/settings/zones/:zoneType - matches exactly how the
- * reused Zone Settings UI already calls it (one zone type edited per
- * save), so nothing in ZonesService/ZonesSettingsComponent needed to
- * change.
+ * updateZones()/updateOption() are HTTP-backed at the same granularity
+ * their callers already use (updateZones(): one zone type per save;
+ * updateOption(): one key per save), so nothing in ZonesService/
+ * GlobalSettingsComponent needed to change. updateOption() re-fetches
+ * afterward rather than merging locally - one extra GET is cheap for
+ * something users change rarely, and it keeps fetch() as the single
+ * source of truth for assembling the full BaseUserSettings shape instead
+ * of duplicating that merge logic here too.
  *
- * updateOption()/resetGlobalSettings()/resetZonesSettings() are still NOT
- * overridden - they call userSettingsDao methods directly rather than
- * going through fetch()/updateZones(), so they still operate against the
- * empty local WebappDataStore. Not exercised: ZonesService's own
- * "reset to default" (resetZonesToDefault()) goes through updateZones()
- * like every other zone edit, never resetZonesSettings(); and
- * updateOption()/resetGlobalSettings() are Global Settings page territory,
- * which still doesn't exist in the webapp. Revisit together if/when that
- * page gets built.
+ * resetGlobalSettings()/resetZonesSettings() are still NOT overridden -
+ * they call userSettingsDao methods directly rather than going through
+ * fetch()/updateOption()/updateZones(), so they still operate against the
+ * empty local WebappDataStore. Not exercised: neither
+ * GlobalSettingsComponent nor ZonesService ever calls them (both only use
+ * the per-key/per-zone-type update paths above).
  */
 @Injectable()
 export class WebappUserSettingsService extends UserSettingsService {
@@ -48,9 +53,17 @@ export class WebappUserSettingsService extends UserSettingsService {
 
   public fetch(): Promise<UserSettings.BaseUserSettings> {
     const defaults = UserSettings.getDefaultsByBuildTarget(BuildTarget.WEBAPP);
-    const url = `${environment.backendBaseUrl}/api/settings/zones`;
-    return firstValueFrom(this.httpClient.get<any>(url, { withCredentials: true })).then(raw => {
-      defaults.zones = toUserZonesModel(raw);
+    const zonesUrl = `${environment.backendBaseUrl}/api/settings/zones`;
+    const optionsUrl = `${environment.backendBaseUrl}/api/settings/options`;
+    return Promise.all([
+      firstValueFrom(this.httpClient.get<any>(zonesUrl, { withCredentials: true })),
+      firstValueFrom(this.httpClient.get<any>(optionsUrl, { withCredentials: true }))
+    ]).then(([rawZones, rawOptions]) => {
+      defaults.zones = toUserZonesModel(rawZones);
+      defaults.systemUnit = rawOptions.systemUnit;
+      defaults.temperatureUnit = rawOptions.temperatureUnit;
+      defaults.disableMissingStressScoresWarning = rawOptions.disableMissingStressScoresWarning;
+      defaults.disableActivitiesNeedRecalculationWarning = rawOptions.disableActivitiesNeedRecalculationWarning;
       return defaults;
     });
   }
@@ -60,6 +73,16 @@ export class WebappUserSettingsService extends UserSettingsService {
     const url = `${environment.backendBaseUrl}/api/settings/zones/${zoneDefinition.value}`;
     return firstValueFrom(this.httpClient.put<any>(url, { values }, { withCredentials: true })).then(raw =>
       UserZonesModel.deserialize(toUserZonesModel(raw)[zoneDefinition.value])
+    );
+  }
+
+  public updateOption<T extends UserSettings.BaseUserSettings>(
+    optionKey: keyof T,
+    optionValue: any
+  ): Promise<UserSettings.BaseUserSettings> {
+    const url = `${environment.backendBaseUrl}/api/settings/options/${String(optionKey)}`;
+    return firstValueFrom(this.httpClient.put<any>(url, { value: optionValue }, { withCredentials: true })).then(() =>
+      this.fetch()
     );
   }
 }

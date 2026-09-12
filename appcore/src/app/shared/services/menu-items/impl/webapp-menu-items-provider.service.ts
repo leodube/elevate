@@ -31,6 +31,11 @@ export class WebappMenuItemsProvider implements MenuItemsProvider {
       routerLinkActive: true
     },
     {
+      icon: "settings",
+      routerLink: AppRoutes.globalSettings,
+      routerLinkActive: true
+    },
+    {
       icon: "sync",
       routerLink: AppRoutes.connectors,
       routerLinkActive: true

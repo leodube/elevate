@@ -45,6 +45,12 @@ const routes: Routes = [
     loadChildren: () => import("../../../zones-settings/zones-settings.module").then(module => module.ZonesSettingsModule)
   },
   {
+    path: AppRoutes.globalSettings,
+    canActivate: [WebappAuthGuard],
+    loadChildren: () =>
+      import("../../../global-settings/global-settings.module").then(module => module.GlobalSettingsModule)
+  },
+  {
     path: AppRoutes.connectors,
     canActivate: [WebappAuthGuard],
     component: WebappConnectorsComponent

@@ -5,12 +5,14 @@ import { AthleteModelInput, AthleteRepository, DatedAthleteSettingsInput } from 
 import { IntervalsSettingsRepository } from "../repositories/intervals-settings.repository";
 import { ActivitiesViewPreferencesRepository } from "../repositories/activities-view-preferences.repository";
 import { isKnownZoneType, UserZonesRepository } from "../repositories/user-zones.repository";
+import { isKnownOption, isValidOptionValue, UserOptionsRepository } from "../repositories/user-options.repository";
 
 export const settingsRouter = Router();
 const settingsRepo = new IntervalsSettingsRepository();
 const athleteRepo = new AthleteRepository();
 const activitiesViewPreferencesRepo = new ActivitiesViewPreferencesRepository();
 const userZonesRepo = new UserZonesRepository();
+const userOptionsRepo = new UserOptionsRepository();
 
 settingsRouter.get("/intervals-connector", async (_req, res) => {
   const settings = await settingsRepo.get();
@@ -125,5 +127,27 @@ settingsRouter.put("/zones/:zoneType", async (req, res) => {
   }
 
   const updated = await userZonesRepo.updateZoneType(zoneType, values);
+  res.json(updated);
+});
+
+settingsRouter.get("/options", async (_req, res) => {
+  const options = await userOptionsRepo.get();
+  res.json(options);
+});
+
+settingsRouter.put("/options/:optionKey", async (req, res) => {
+  const { optionKey } = req.params;
+  if (!isKnownOption(optionKey)) {
+    res.status(400).json({ error: `Unknown option: ${optionKey}` });
+    return;
+  }
+
+  const { value } = req.body ?? {};
+  if (!isValidOptionValue(optionKey, value)) {
+    res.status(400).json({ error: `Invalid value for option: ${optionKey}` });
+    return;
+  }
+
+  const updated = await userOptionsRepo.updateOption(optionKey, value);
   res.json(updated);
 });
