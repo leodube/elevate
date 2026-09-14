@@ -160,12 +160,19 @@ export class WebappSyncService extends SyncService<void> implements OnDestroy {
    * IntervalsConnector shares one progress state between syncNew() and
    * backfill() (both go through the same runSync()), so the sync bar
    * correctly reflects a backfill run without any changes on that side.
+   *
+   * startDate is mandatory here (the backfill dialog enforces it) and
+   * maps to runSync()'s "oldest" param, overriding whatever range
+   * intervals.icu's API would otherwise default to. resyncExisting maps
+   * to runSync()'s same-named param - see IntervalsConnector's comment
+   * for exactly what it changes (skip vs re-process activities already
+   * in the DB).
    */
-  public backfill(): Promise<void> {
-    return this.triggerAndTrack(this.backfillUrl);
+  public backfill(startDate: Date, resyncExisting: boolean): Promise<void> {
+    return this.triggerAndTrack(this.backfillUrl, { oldest: startDate.toISOString(), resyncExisting });
   }
 
-  private triggerAndTrack(url: string): Promise<void> {
+  private triggerAndTrack(url: string, body: object = {}): Promise<void> {
     const previousCompletedAt = this.syncStatus$.value.completedAt;
 
     // Optimistic immediate update: there's an unavoidable round trip before
@@ -181,7 +188,7 @@ export class WebappSyncService extends SyncService<void> implements OnDestroy {
 
     this.startPolling(previousCompletedAt);
 
-    return firstValueFrom(this.httpClient.post(url, {}, { withCredentials: true })).then(() => undefined);
+    return firstValueFrom(this.httpClient.post(url, body, { withCredentials: true })).then(() => undefined);
   }
 
   public getSyncState(): Promise<SyncState> {

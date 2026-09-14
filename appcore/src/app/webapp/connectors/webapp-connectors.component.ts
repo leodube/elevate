@@ -1,10 +1,12 @@
 import { HttpClient } from "@angular/common/http";
 import { Component, Inject, OnInit } from "@angular/core";
+import { MatDialog } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { firstValueFrom } from "rxjs";
 import { environment } from "../../../environments/environment";
 import { SyncService } from "../../shared/services/sync/sync.service";
 import { WebappSyncService } from "../../shared/services/sync/impl/webapp-sync.service";
+import { BackfillDialogResult, WebappBackfillDialogComponent } from "./webapp-backfill-dialog.component";
 
 interface IntervalsConnectorSettingsResponse {
   configured: boolean;
@@ -45,7 +47,7 @@ interface IntervalsConnectorSettingsResponse {
             (click)="onTriggerBackfill()"
             [disabled]="isBackfilling"
           >
-            Sync all activities
+            Backfill activities
           </button>
           <span *ngIf="isBackfilling" class="mat-body-1">Syncing...</span>
         </div>
@@ -63,6 +65,7 @@ export class WebappConnectorsComponent implements OnInit {
   constructor(
     @Inject(HttpClient) private readonly httpClient: HttpClient,
     @Inject(MatSnackBar) private readonly snackBar: MatSnackBar,
+    @Inject(MatDialog) private readonly dialog: MatDialog,
     @Inject(SyncService) private readonly webappSyncService: WebappSyncService
   ) {}
 
@@ -106,18 +109,28 @@ export class WebappConnectorsComponent implements OnInit {
   }
 
   public onTriggerBackfill(): void {
-    this.isBackfilling = true;
-    this.webappSyncService
-      .backfill()
-      .then(() => {
-        this.snackBar.open("Backfill started - watch the sync bar for progress.", "Close", { duration: 5000 });
-      })
-      .catch(() => {
-        this.snackBar.open("Failed to trigger backfill", "Close", { duration: 5000 });
-      })
-      .finally(() => {
-        this.isBackfilling = false;
-        this.refreshSettings();
-      });
+    const dialogRef = this.dialog.open(WebappBackfillDialogComponent, {
+      minWidth: "360px"
+    });
+
+    dialogRef.afterClosed().subscribe((result: BackfillDialogResult | null) => {
+      if (!result) {
+        return;
+      }
+
+      this.isBackfilling = true;
+      this.webappSyncService
+        .backfill(result.startDate, result.resyncExisting)
+        .then(() => {
+          this.snackBar.open("Backfill started - watch the sync bar for progress.", "Close", { duration: 5000 });
+        })
+        .catch(() => {
+          this.snackBar.open("Failed to trigger backfill", "Close", { duration: 5000 });
+        })
+        .finally(() => {
+          this.isBackfilling = false;
+          this.refreshSettings();
+        });
+    });
   }
 }

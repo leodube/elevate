@@ -7,8 +7,6 @@ import { switchMap } from "rxjs/operators";
 import { ActivityService } from "../shared/services/activity/activity.service";
 import { UserSettingsService } from "../shared/services/user-settings/user-settings.service";
 import { LoggerService } from "../shared/services/logging/logger.service";
-import { ConfirmDialogDataModel } from "../shared/dialogs/confirm-dialog/confirm-dialog-data.model";
-import { ConfirmDialogComponent } from "../shared/dialogs/confirm-dialog/confirm-dialog.component";
 import { GotItDialogComponent } from "../shared/dialogs/got-it-dialog/got-it-dialog.component";
 import { GotItDialogDataModel } from "../shared/dialogs/got-it-dialog/got-it-dialog-data.model";
 import { RecalculateActivitiesBarComponent } from "./recalculate-activities-bar.component";
@@ -138,27 +136,7 @@ export class WebappRecalculateActivitiesBarComponent
 
   public onFixActivities(): void {
     super.onFixActivities();
-
-    const data: ConfirmDialogDataModel = {
-      title: "Recalculate activities affected by athlete settings changes",
-      content:
-        "Activities inconsistent with your current athlete settings will be recalculated on the server " +
-        "using their already-synced data - no re-download from intervals.icu is needed.",
-      confirmText: "Proceed to the recalculation"
-    };
-
-    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
-      minWidth: ConfirmDialogComponent.MIN_WIDTH,
-      maxWidth: ConfirmDialogComponent.MAX_WIDTH,
-      data: data
-    });
-
-    const afterClosedSubscription = dialogRef.afterClosed().subscribe((confirm: boolean) => {
-      if (confirm) {
-        this.startRecalculation();
-      }
-      afterClosedSubscription.unsubscribe();
-    });
+    this.startRecalculation();
   }
 
   private startRecalculation(): void {

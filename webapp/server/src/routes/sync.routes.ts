@@ -43,14 +43,37 @@ syncRouter.post("/trigger", async (_req, res) => {
   }
 });
 
-syncRouter.post("/backfill", async (_req, res) => {
+const BACKFILL_MIN_DATE = new Date(2000, 0, 1);
+
+syncRouter.post("/backfill", async (req, res) => {
   if (connector.isSyncing) {
     res.status(409).json({ error: "Sync already in progress" });
     return;
   }
 
+  const { oldest: oldestRaw, resyncExisting } = req.body ?? {};
+
+  let oldest: Date | undefined;
+  if (oldestRaw !== undefined) {
+    if (typeof oldestRaw !== "string") {
+      res.status(400).json({ error: "oldest must be an ISO date string" });
+      return;
+    }
+    oldest = new Date(oldestRaw);
+    const now = new Date();
+    if (Number.isNaN(oldest.getTime()) || oldest < BACKFILL_MIN_DATE || oldest > now) {
+      res.status(400).json({ error: "oldest must be between 2000-01-01 and today" });
+      return;
+    }
+  }
+
+  if (resyncExisting !== undefined && typeof resyncExisting !== "boolean") {
+    res.status(400).json({ error: "resyncExisting must be a boolean" });
+    return;
+  }
+
   try {
-    connector.backfill().catch(err => {
+    connector.backfill(oldest, undefined, !!resyncExisting).catch(err => {
       console.error("Background backfill failed:", err);
     });
     res.status(202).json({ ok: true });

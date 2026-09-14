@@ -21,21 +21,22 @@ import { WebappHttpInterceptor } from "../../../webapp/auth/webapp-http.intercep
 import { HTTP_INTERCEPTORS } from "@angular/common/http";
 import { WebappLoginComponent } from "../../../webapp/login/webapp-login.component";
 import { WebappConnectorsComponent } from "../../../webapp/connectors/webapp-connectors.component";
+import { WebappBackfillDialogComponent } from "../../../webapp/connectors/webapp-backfill-dialog.component";
 import { WebappActivitiesViewPreferencesService } from "../../../webapp/activities/webapp-activities-view-preferences.service";
 
 /**
  * The DI seam for the webapp target - mirrors DesktopTargetModule /
  * ExtensionTargetModule exactly, just swapping in HTTP-backed
  * implementations against webapp/server instead of Electron IPC or
- * chrome.storage. See WebappActivityService/WebappSyncService for what's
- * genuinely wired up vs the flagged v1 gaps (WebappAthleteService/
- * WebappUserSettingsService still operate against the local no-op
- * WebappDataStore).
+ * chrome.storage. WebappAthleteService/WebappUserSettingsService are now
+ * fully real too (see their own comments for exactly what's persisted vs
+ * still a v1 gap - resetGlobalSettings()/resetZonesSettings() remain
+ * unoverridden, but nothing in the webapp UI calls them).
  */
 @NgModule({
   imports: [CoreModule, WebappRoutingModule],
   exports: [CoreModule, WebappRoutingModule],
-  declarations: [WebappLoginComponent, WebappConnectorsComponent],
+  declarations: [WebappLoginComponent, WebappConnectorsComponent, WebappBackfillDialogComponent],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: WebappHttpInterceptor, multi: true },
     { provide: WindowService, useClass: WebappWindowService },

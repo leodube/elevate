@@ -107,17 +107,22 @@ export class IntervalsConnector {
    * connectors page.
    */
   @LogMethod()
-  public async backfill(oldest?: Date, newest?: Date): Promise<SyncResult> {
+  public async backfill(oldest?: Date, newest?: Date, resyncExisting = false): Promise<SyncResult> {
     const settings = await this.settingsRepo.get();
     if (!settings?.apiKey) {
       throw new Error("intervals.icu is not configured - missing API key");
     }
 
-    return this.runSync(settings.apiKey, oldest, newest);
+    return this.runSync(settings.apiKey, oldest, newest, resyncExisting);
   }
 
   @LogMethod()
-  private async runSync(apiKey: string, oldest: Date | undefined, newest: Date | undefined): Promise<SyncResult> {
+  private async runSync(
+    apiKey: string,
+    oldest: Date | undefined,
+    newest: Date | undefined,
+    resyncExisting = false
+  ): Promise<SyncResult> {
     if (this.progress.isSyncing) {
       throw new Error("Sync already in progress");
     }
@@ -148,8 +153,14 @@ export class IntervalsConnector {
         this.progress.currentActivity = { id: bare.id, name: bare.name, startTime: bare.start_date_local };
 
         try {
+          // resyncExisting (webapp backfill dialog's "Re-sync existing
+          // activities" checkbox) - when true, don't skip; re-fetch and
+          // recompute this activity just like a new one. Dated athlete
+          // settings still apply either way, via the same
+          // athleteSnapshotResolver.resolve() call below keyed off this
+          // activity's own start date.
           const alreadySynced = await this.activitiesRepo.exists(bare.id);
-          if (alreadySynced) {
+          if (alreadySynced && !resyncExisting) {
             this.progress.skippedCount++;
             continue;
           }
