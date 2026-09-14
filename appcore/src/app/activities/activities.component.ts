@@ -1,7 +1,7 @@
 import _ from "lodash";
 import moment from "moment";
 import { saveAs } from "file-saver";
-import { Component, Inject, OnDestroy, OnInit, ViewChild } from "@angular/core";
+import { Component, Inject, OnDestroy, OnInit, Optional, ViewChild } from "@angular/core";
 import { ActivityService } from "../shared/services/activity/activity.service";
 import { MatDialog } from "@angular/material/dialog";
 import { MatPaginator, PageEvent } from "@angular/material/paginator";
@@ -31,6 +31,11 @@ import { UserSettings } from "@elevate/shared/models/user-settings/user-settings
 import NumberColumn = ActivityColumns.NumberColumn;
 import BaseUserSettings = UserSettings.BaseUserSettings;
 import { FieldInfo, Parser as Json2CsvParser } from "json2csv";
+import { WebappActivityService } from "../shared/services/activity/impl/webapp-activity.service";
+import {
+  ActivitiesViewPreferences,
+  WebappActivitiesViewPreferencesService
+} from "../webapp/activities/webapp-activities-view-preferences.service";
 
 class Preferences {
   constructor(
@@ -79,6 +84,8 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
   public preferences: Preferences;
   public today: Date;
 
+  private webappViewPreferences: ActivitiesViewPreferences = null;
+
   constructor(
     @Inject(AppService) private readonly appService: AppService,
     @Inject(ActivatedRoute) private readonly route: ActivatedRoute,
@@ -89,7 +96,13 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
     @Inject(OPEN_RESOURCE_RESOLVER) private readonly openResourceResolver: OpenResourceResolver,
     @Inject(MatSnackBar) private readonly snackBar: MatSnackBar,
     @Inject(MatDialog) private readonly dialog: MatDialog,
-    @Inject(LoggerService) private readonly logger: LoggerService
+    @Inject(LoggerService) private readonly logger: LoggerService,
+    @Optional()
+    @Inject(WebappActivityService)
+    private readonly webappActivityService: WebappActivityService,
+    @Optional()
+    @Inject(WebappActivitiesViewPreferencesService)
+    private readonly webappViewPreferencesService: WebappActivitiesViewPreferencesService
   ) {
     this.hasActivities = null; // Can be null: don't know yet true/false status
     this.hasEmptyResults = null; // Can be null: don't know yet true/false status
@@ -175,6 +188,22 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
         this.isImperial = userSettings.systemUnit === MeasureSystem.IMPERIAL;
       })
       .then(() => {
+        // Webapp only: load the saved sports/columns selection and the
+        // sports summary for the filter dropdown
+        return Promise.all([
+          this.webappViewPreferencesService
+            ? this.webappViewPreferencesService.get().then(preferences => {
+                this.webappViewPreferences = preferences;
+              })
+            : Promise.resolve(),
+          this.webappActivityService
+            ? this.webappActivityService.fetchSportsSummary().then(summary => {
+                this.athleteSports = _.map(summary, "type");
+              })
+            : Promise.resolve()
+        ]);
+      })
+      .then(() => {
         // Filter displayed columns
         this.columnsSetup();
 
@@ -190,6 +219,8 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
             this.logger.error("Failed to parse url preferences provided");
             this.preferences = new Preferences();
           }
+        } else if (this.webappViewPreferences) {
+          this.preferences.sports = this.webappViewPreferences.selectedSports;
         }
 
         // Get and apply data
@@ -316,7 +347,7 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
 
   public filterDisplayedColumns(): void {
     this.columns = _.filter(ActivityColumns.Definition.ALL, (column: ActivityColumns.Column) => {
-      if (column.buildTarget !== undefined && column.buildTarget !== environment.buildTarget) {
+      if (column.buildTargets !== undefined && !column.buildTargets.includes(environment.buildTarget)) {
         return false;
       }
 
@@ -337,7 +368,9 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
   }
 
   public getSelectedColumns(): ActivityColumns.Column[] {
-    const savedColumns: string[] = JSON.parse(localStorage.getItem(ActivitiesComponent.LS_SELECTED_COLUMNS));
+    const savedColumns: string[] = this.webappViewPreferences
+      ? this.webappViewPreferences.selectedColumns
+      : JSON.parse(localStorage.getItem(ActivitiesComponent.LS_SELECTED_COLUMNS));
 
     let selectedColumns: ActivityColumns.Column[] = null;
 
@@ -360,6 +393,14 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
     const columnsToBeSaved: string[] = _.map(this.selectedColumns, (column: ActivityColumns.Column) => {
       return column.id;
     });
+
+    if (this.webappViewPreferencesService) {
+      this.webappViewPreferencesService
+        .saveSelectedColumns(columnsToBeSaved)
+        .catch(error => this.logger.error("Failed to save selected columns", error));
+      return;
+    }
+
     localStorage.setItem(ActivitiesComponent.LS_SELECTED_COLUMNS, JSON.stringify(columnsToBeSaved));
   }
 
@@ -382,6 +423,7 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
   public onActivityPrefSportsChange(): void {
     this.resetPageIndexPreference();
     this.persistPreferencesInUrl();
+    this.saveSelectedSports();
     this.findAndDisplayActivities();
   }
 
@@ -393,7 +435,16 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
   public onResetPreferences(): void {
     this.preferences = new Preferences();
     this.persistPreferencesInUrl();
+    this.saveSelectedSports();
     this.findAndDisplayActivities();
+  }
+
+  private saveSelectedSports(): void {
+    if (this.webappViewPreferencesService) {
+      this.webappViewPreferencesService
+        .saveSelectedSports(this.preferences.sports)
+        .catch(error => this.logger.error("Failed to save selected sports", error));
+    }
   }
 
   private resetPageIndexPreference(): void {

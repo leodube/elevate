@@ -12,7 +12,7 @@ import {
 } from "@angular/core";
 import _ from "lodash";
 import moment from "moment";
-import * as d3 from "d3";
+import { curveLinear } from "d3-shape";
 import MG from "metrics-graphics";
 import { DayFitnessTrendModel } from "../shared/models/day-fitness-trend.model";
 import { PeriodModel } from "../shared/models/period.model";
@@ -498,7 +498,7 @@ export class FitnessTrendGraphComponent implements OnInit, OnChanges, OnDestroy 
       animate_on_load: false,
       transition_on_update: false,
       aggregate_rollover: true,
-      interpolate: d3.curveLinear,
+      interpolate: curveLinear,
       missing_is_hidden: true,
       max_data_size: 6,
       missing_is_hidden_accessor: "hidden",

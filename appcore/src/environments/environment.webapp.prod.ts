@@ -1,0 +1,14 @@
+import { LoggerService } from "../app/shared/services/logging/logger.service";
+import { BuildTarget } from "@elevate/shared/enums/build-target.enum";
+
+export const environment = {
+  buildTarget: BuildTarget.WEBAPP,
+  production: true,
+  logLevel: LoggerService.LEVEL_WARN,
+  minBackupVersion: "7.0.0-0",
+  showDebugRibbon: false,
+  showActivityDebugData: false,
+  showRouteUrl: false,
+  bypassProfileRestoreChecks: false,
+  backendBaseUrl: ""
+};

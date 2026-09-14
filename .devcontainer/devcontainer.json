@@ -1,0 +1,37 @@
+{
+  "name": "Elevate",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "workspaceFolder": "/workspace",
+  "runArgs": ["--network=devnet"],
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "git.openRepositoryInParentFolders": "always",
+        "eslint.workingDirectories": [
+          "webapp/server",
+          "appcore"
+        ]
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "cweijan.vscode-postgresql-client2",
+        "angular.ng-template"
+      ]
+    }
+  },
+
+  "forwardPorts": [3000, 4200],
+
+  "containerEnv": {
+    "PGHOST": "postgres",
+    "PGPORT": "5432",
+    "PGDATABASE": "elevate_webapp",
+    "PGUSER": "postgres",
+    "PGPASSWORD": "postgres"
+  },
+
+  "postCreateCommand": "npm install --prefix webapp/server && npm install --prefix appcore"
+}

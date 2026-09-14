@@ -17,6 +17,7 @@ import { LoggerService } from "./services/logging/logger.service";
 import { ConsoleLoggerService } from "./services/logging/console-logger.service";
 import { StreamsDao } from "./dao/streams/streams.dao";
 import { StreamsService } from "./services/streams/streams.service";
+import { YearProgressPresetDao } from "../year-progress/shared/dao/year-progress-preset.dao";
 import { ActivitiesSettingsLacksDialogComponent } from "../recalculate-activities-bar/activities-settings-lacks-dialog.component";
 import { LoadingDialogComponent } from "./dialogs/loading-dialog/loading-dialog.component";
 import { ReleaseNoteService } from "../releases-notes/release-note.service";
@@ -45,6 +46,7 @@ import { ComponentsFactoryService } from "./services/components-factory.service"
     ActivityDao,
     StreamsService,
     StreamsDao,
+    YearProgressPresetDao,
     GlobalSettingsService,
     OptionHelperReaderService,
     SideNavService,

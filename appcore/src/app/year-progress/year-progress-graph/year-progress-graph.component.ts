@@ -15,7 +15,8 @@ import moment, { Moment } from "moment";
 import _ from "lodash";
 import { YearProgressModel } from "../shared/models/year-progress.model";
 import { ProgressModel } from "../shared/models/progress.model";
-import * as d3 from "d3";
+import { curveLinear } from "d3-shape";
+import { format } from "d3-format";
 import MG from "metrics-graphics";
 import { MetricsGraphicsEventModel } from "../../shared/models/graphs/metrics-graphics-event.model";
 import { ProgressType } from "../shared/enums/progress-type.enum";
@@ -308,7 +309,7 @@ export class YearProgressGraphComponent implements OnInit, OnChanges, OnDestroy 
       animate_on_load: false,
       transition_on_update: false,
       aggregate_rollover: true,
-      interpolate: d3.curveLinear,
+      interpolate: curveLinear,
       missing_is_hidden: true,
       missing_is_hidden_accessor: "hidden",
       xax_count: 12,
@@ -321,7 +322,7 @@ export class YearProgressGraphComponent implements OnInit, OnChanges, OnDestroy 
       markers: [],
       legend: null,
       colors: [],
-      yax_format: d3.format(""),
+      yax_format: format(""),
       max_data_size: 0,
       click: (metricsGraphicsEvent: MetricsGraphicsEventModel) => {
         this.onGraphClick(metricsGraphicsEvent);

@@ -16,6 +16,8 @@ export abstract class AppService {
   public historyChanges$: Observable<void>;
   public themeChanges$: Subject<Theme>;
   public isAppLoaded: boolean;
+  // Default true: desktop/extension have no concept of "not authenticated" -
+  public isAuthenticated: boolean = true;
 
   protected constructor(
     @Inject(ActivityService) protected readonly activityService: ActivityService,
