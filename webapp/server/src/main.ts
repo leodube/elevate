@@ -1,5 +1,6 @@
 import cookieParser from "cookie-parser";
 import express from "express";
+import path from "path";
 import pinoHttp from "pino-http";
 import "reflect-metadata";
 import { env } from "./config/env";
@@ -13,6 +14,8 @@ import { yearProgressRouter } from "./routes/year-progress.routes";
 import { logger } from "./tools/logger";
 
 const BACKGROUND_SYNC_INTERVAL_MS = 2 * 60 * 60 * 1000;
+
+const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
 const app = express();
 
@@ -30,6 +33,16 @@ app.use("/api/sync", requireAuth, syncRouter);
 app.use("/api/settings", requireAuth, settingsRouter);
 app.use("/api/activities", requireAuth, activitiesRouter);
 app.use("/api/year-progress", requireAuth, yearProgressRouter);
+
+// Static client + SPA fallback
+app.use(express.static(PUBLIC_DIR));
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api/")) {
+    next();
+    return;
+  }
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
 
 async function start(): Promise<void> {
   try {
