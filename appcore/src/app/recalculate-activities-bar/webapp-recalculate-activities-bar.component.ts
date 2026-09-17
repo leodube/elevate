@@ -3,10 +3,11 @@ import { Component, Inject, OnDestroy, OnInit } from "@angular/core";
 import { Router } from "@angular/router";
 import { MatDialog } from "@angular/material/dialog";
 import { firstValueFrom, interval, Subscription } from "rxjs";
-import { switchMap } from "rxjs/operators";
+import { filter, switchMap, take } from "rxjs/operators";
 import { ActivityService } from "../shared/services/activity/activity.service";
 import { UserSettingsService } from "../shared/services/user-settings/user-settings.service";
 import { LoggerService } from "../shared/services/logging/logger.service";
+import { WebappAuthService } from "../webapp/auth/webapp-auth.service";
 import { GotItDialogComponent } from "../shared/dialogs/got-it-dialog/got-it-dialog.component";
 import { GotItDialogDataModel } from "../shared/dialogs/got-it-dialog/got-it-dialog-data.model";
 import { RecalculateActivitiesBarComponent } from "./recalculate-activities-bar.component";
@@ -121,13 +122,19 @@ export class WebappRecalculateActivitiesBarComponent
     @Inject(UserSettingsService) protected readonly userSettingsService: UserSettingsService,
     @Inject(MatDialog) protected readonly dialog: MatDialog,
     @Inject(LoggerService) protected readonly logger: LoggerService,
-    @Inject(HttpClient) private readonly httpClient: HttpClient
+    @Inject(HttpClient) private readonly httpClient: HttpClient,
+    @Inject(WebappAuthService) private readonly authService: WebappAuthService
   ) {
     super(router, activityService, userSettingsService, dialog);
   }
 
   public ngOnInit(): void {
-    super.ngOnInit();
+    this.authService.isAuthenticated$
+      .pipe(
+        filter(isAuthenticated => isAuthenticated),
+        take(1)
+      )
+      .subscribe(() => super.ngOnInit());
   }
 
   public ngOnDestroy(): void {

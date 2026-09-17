@@ -3,12 +3,16 @@ import { SyncMenuComponent } from "../sync-menu.component";
 import { Router } from "@angular/router";
 import { MatDialog } from "@angular/material/dialog";
 import { MatSnackBar } from "@angular/material/snack-bar";
+import { HttpClient } from "@angular/common/http";
+import { firstValueFrom } from "rxjs";
 import { SyncState } from "../../shared/services/sync/sync-state.enum";
 import { WebappSyncService } from "../../shared/services/sync/impl/webapp-sync.service";
 import { SyncService } from "../../shared/services/sync/sync.service";
 import { AppService } from "../../shared/services/app-service/app.service";
 import { WebappAppService } from "../../shared/services/app-service/webapp/webapp-app.service";
 import { WebappAuthService } from "../../webapp/auth/webapp-auth.service";
+import { AppRoutes } from "../../shared/models/app-routes";
+import { environment } from "../../../environments/environment";
 import { Subscription } from "rxjs";
 
 @Component({
@@ -37,7 +41,8 @@ export class WebappSyncMenuComponent extends SyncMenuComponent implements OnInit
     @Inject(SyncService) protected readonly webappSyncService: WebappSyncService,
     @Inject(MatDialog) protected readonly dialog: MatDialog,
     @Inject(MatSnackBar) protected readonly snackBar: MatSnackBar,
-    @Inject(WebappAuthService) private readonly authService: WebappAuthService
+    @Inject(WebappAuthService) private readonly authService: WebappAuthService,
+    @Inject(HttpClient) private readonly httpClient: HttpClient
   ) {
     super(webappAppService, router, webappSyncService, dialog, snackBar);
   }
@@ -79,7 +84,18 @@ export class WebappSyncMenuComponent extends SyncMenuComponent implements OnInit
   }
 
   public onSync(): void {
-    this.webappSyncService.sync();
+    firstValueFrom(
+      this.httpClient.get<{ configured: boolean }>(
+        `${environment.backendBaseUrl}/api/settings/intervals-connector`,
+        { withCredentials: true }
+      )
+    ).then(settings => {
+      if (!settings.configured) {
+        this.router.navigate(["/" + AppRoutes.connectors]);
+        return;
+      }
+      this.webappSyncService.sync();
+    });
   }
 
   public onBackup(): void {
