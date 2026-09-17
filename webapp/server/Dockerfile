@@ -31,6 +31,7 @@ COPY --from=client-build /repo/dist/app ./public
 
 ENV NODE_ENV=production
 ENV MIGRATIONS_DIR=/app/migrations
+ENV PUBLIC_DIR=/app/public
 EXPOSE 3000
 
 CMD ["npm", "start"]

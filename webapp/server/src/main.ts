@@ -15,7 +15,7 @@ import { logger } from "./tools/logger";
 
 const BACKGROUND_SYNC_INTERVAL_MS = 2 * 60 * 60 * 1000;
 
-const PUBLIC_DIR = path.join(__dirname, "..", "public");
+const PUBLIC_DIR = process.env.PUBLIC_DIR ?? path.join(__dirname, "..", "..", "..", "..", "public");
 
 const app = express();
 
