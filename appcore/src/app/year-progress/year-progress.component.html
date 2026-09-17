@@ -9,7 +9,7 @@
   <app-year-progress-user-guide [readMore]="false"></app-year-progress-user-guide>
 </mat-card>
 
-<mat-card *ngIf="hasActivities">
+<mat-card *ngIf="hasActivities && isProgressionInitialized">
   <mat-card-content>
     <div fxLayout="row" fxLayout.lt-lg="column" fxLayoutAlign="start start">
       <div fxLayout="row" fxLayoutAlign="space-between start" fxFlexFill fxFlex="60" fxFlex.lt-lg="100">

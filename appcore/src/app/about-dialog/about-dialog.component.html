@@ -24,7 +24,7 @@
     <mat-divider></mat-divider>
   </ng-container>
 
-  <ng-container *ngIf="(buildTarget === BuildTarget.DESKTOP)">
+  <ng-container *ngIf="(buildTarget === BuildTarget.DESKTOP || buildTarget === BuildTarget.WEBAPP)">
     <div class="space-under">
       Application made with ❤️ by <a href="https://twitter.com/champagnethomas" target="_blank">Thomas Champagne</a>.
     </div>

@@ -80,6 +80,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   public currentRoute: string;
   public showDebugRibbon: boolean;
+  public sideNavUserPreference: boolean;
 
   constructor(
     @Inject(AppService) public readonly appService: AppService,
@@ -187,11 +188,11 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   public sideNavSetup(): void {
-    this.sideNav.opened = AppComponent.DEFAULT_SIDE_NAV_STATUS === SideNavStatus.OPENED;
+    this.sideNavUserPreference = AppComponent.DEFAULT_SIDE_NAV_STATUS === SideNavStatus.OPENED;
 
     const sideNavOpened: string = localStorage.getItem(AppComponent.LS_SIDE_NAV_OPENED_KEY);
     if (sideNavOpened) {
-      this.sideNav.opened = sideNavOpened === "true";
+      this.sideNavUserPreference = sideNavOpened === "true";
     }
   }
 
@@ -227,8 +228,8 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   public onSideNavToggle(): void {
-    this.sideNav.toggle();
-    localStorage.setItem(AppComponent.LS_SIDE_NAV_OPENED_KEY, this.sideNav.opened ? "true" : "false");
+    this.sideNavUserPreference = !this.sideNavUserPreference;
+    localStorage.setItem(AppComponent.LS_SIDE_NAV_OPENED_KEY, this.sideNavUserPreference ? "true" : "false");
   }
 
   public registerCustomIcons(): void {

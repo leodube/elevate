@@ -1,7 +1,6 @@
 import { Component, HostListener, Inject, Input, OnDestroy, OnInit } from "@angular/core";
 import mapboxgl, { FitBoundsOptions, LngLatBounds } from "mapbox-gl";
 import { StylesControl } from "mapbox-gl-controls";
-import { dirname } from "@elevate/shared/tools/dirname";
 import _ from "lodash";
 import { ActivityViewService } from "../shared/activity-view.service";
 import { LoggerService } from "../../../shared/services/logging/logger.service";
@@ -52,18 +51,32 @@ export class ActivityViewMapComponent implements OnInit, OnDestroy {
   @Input()
   public latLng: [number, number][];
 
-  public lngLat: [number, number][];
+  public lngLat: ([number, number] | null)[];
   private map: mapboxgl.Map;
   private activityBounds: mapboxgl.LngLatBounds;
   private moveMarker: mapboxgl.Marker;
   private selectedGraphBoundsSubscription: Subscription;
   public isMapReady: boolean;
 
-  private static getActivityBounds(lngLat: [number, number][]): LngLatBounds {
-    const bounds = new LngLatBounds(lngLat[0], lngLat[1]);
+  /**
+   * Filters out null entries (genuine GPS gaps - see intervals.icu's
+   * documented behavior) before computing bounds. A previous version used
+   * lngLat[0]/lngLat[1] directly as the initial corners and .extend()'d
+   * every point unconditionally - if either happened to be null (very
+   * common: GPS hasn't locked yet in the first second or two of an
+   * outdoor recording), this threw "Cannot read properties of null"
+   * before the map ever rendered.
+   */
+  private static getActivityBounds(lngLat: ([number, number] | null)[]): LngLatBounds {
+    const validPoints = lngLat.filter((point): point is [number, number] => point != null);
+    if (validPoints.length === 0) {
+      return null;
+    }
+
+    const bounds = new LngLatBounds(validPoints[0], validPoints[0]);
 
     // Extend the 'LngLatBounds' to include every coordinate in the bounds result.
-    for (const point of lngLat) {
+    for (const point of validPoints) {
       bounds.extend(point);
     }
     return bounds;
@@ -72,7 +85,17 @@ export class ActivityViewMapComponent implements OnInit, OnDestroy {
   private static createMapMarkerElement(iconName: string): HTMLElement {
     const element = document.createElement("div");
     element.className = "marker";
-    element.style.backgroundImage = `url(${dirname(location.pathname)}/assets/map-icons/${iconName}.svg)`;
+    // Deliberately a relative path (no leading "/" and no dirname(location.pathname)
+    // prefix) - the browser resolves this against the document's <base href>,
+    // which is what makes it work correctly for BOTH targets regardless of
+    // baseHref value (desktop: "/app/index.html", webapp: "/"). The
+    // previous version built the URL from the CURRENT ROUTE's path via
+    // dirname(location.pathname) - fine for desktop, where the app
+    // effectively never navigates away from a flat base path, but broken
+    // for webapp's real client-side routing: viewing an activity at
+    // /activity/:id made this resolve to /activity/assets/... instead of
+    // /assets/..., 404ing the icon and leaving markers invisible.
+    element.style.backgroundImage = `url(assets/map-icons/${iconName}.svg)`;
     element.style.width = "16px";
     element.style.height = "16px";
     element.style.backgroundSize = "100%";
@@ -103,8 +126,12 @@ export class ActivityViewMapComponent implements OnInit, OnDestroy {
     // Assign token
     mapboxgl.accessToken = mapBoxToken;
 
-    // Invert lat and long for map box
-    this.lngLat = this.latLng.map(latLng => [latLng[1], latLng[0]]) as [number, number][];
+    // Invert lat and long for map box. Preserves null entries at their
+    // original index (genuine GPS gaps) rather than crashing on
+    // latLng[1]/latLng[0] of null - positional alignment with this.latLng
+    // is required by showMoveMarkerAtLatLngIndex()'s indexed lookup below,
+    // which already correctly guards for a null entry.
+    this.lngLat = this.latLng.map(latLng => (latLng ? ([latLng[1], latLng[0]] as [number, number]) : null));
 
     // Get activity path bounds and declare fit options
     this.activityBounds = ActivityViewMapComponent.getActivityBounds(this.lngLat);
@@ -208,7 +235,13 @@ export class ActivityViewMapComponent implements OnInit, OnDestroy {
     });
   }
 
-  private drawPath(name: string, color: string, pathLngLat: [number, number][]): void {
+  private drawPath(name: string, color: string, pathLngLat: ([number, number] | null)[]): void {
+    // GeoJSON LineString coordinates must be valid [lng,lat] pairs - null
+    // entries (genuine GPS gaps) are filtered here for rendering only;
+    // this.lngLat itself keeps its nulls at their original positions for
+    // the indexed move-marker lookup elsewhere.
+    const validCoordinates = pathLngLat.filter((point): point is [number, number] => point != null);
+
     // Remove move marker to avoid move marker duplicate glitch on source+layer add or remove
     if (!this.map.getSource(name)) {
       this.map.addSource(name, {
@@ -218,7 +251,7 @@ export class ActivityViewMapComponent implements OnInit, OnDestroy {
           properties: {},
           geometry: {
             type: "LineString",
-            coordinates: pathLngLat
+            coordinates: validCoordinates
           }
         }
       });
@@ -257,17 +290,28 @@ export class ActivityViewMapComponent implements OnInit, OnDestroy {
     this.drawPath("activity", ActivityViewMapComponent.ACTIVITY_PATH_COLOR, this.lngLat);
   }
 
-  private createMapMarkers(lngLat: [number, number][]): void {
+  private createMapMarkers(lngLat: ([number, number] | null)[]): void {
+    // First/last entries could themselves be a genuine GPS gap (e.g. GPS
+    // not yet locked in the first second or two of a recording) - use the
+    // first/last VALID point instead of assuming index 0 / length-1 are
+    // populated.
+    const validPoints = lngLat.filter((point): point is [number, number] => point != null);
+    if (validPoints.length === 0) {
+      return;
+    }
+    const firstValid = validPoints[0];
+    const lastValid = _.last(validPoints);
+
     // Create start marker
-    new mapboxgl.Marker(ActivityViewMapComponent.createMapMarkerElement("start")).setLngLat(lngLat[0]).addTo(this.map);
+    new mapboxgl.Marker(ActivityViewMapComponent.createMapMarkerElement("start")).setLngLat(firstValid).addTo(this.map);
 
     // Create end marker
-    new mapboxgl.Marker(ActivityViewMapComponent.createMapMarkerElement("end"))
-      .setLngLat(_.last(lngLat))
-      .addTo(this.map);
+    new mapboxgl.Marker(ActivityViewMapComponent.createMapMarkerElement("end")).setLngLat(lastValid).addTo(this.map);
 
     // Create move marker
-    this.moveMarker = new mapboxgl.Marker(ActivityViewMapComponent.createMapMarkerElement("move")).setLngLat(lngLat[0]);
+    this.moveMarker = new mapboxgl.Marker(ActivityViewMapComponent.createMapMarkerElement("move")).setLngLat(
+      firstValid
+    );
 
     // Add marker to map and don't display the move marker on first load: only when mouse moves on graph
     this.moveMarker.addTo(this.map);
