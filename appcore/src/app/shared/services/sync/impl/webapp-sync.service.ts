@@ -1,9 +1,11 @@
 import { HttpClient } from "@angular/common/http";
 import { Inject, Injectable, OnDestroy } from "@angular/core";
+import { Router } from "@angular/router";
 import { SyncStatusResponse } from "@elevate/shared/models/sync/sync-progress.model";
 import { BehaviorSubject, Subscription, firstValueFrom, interval, of } from "rxjs";
 import { catchError, filter, startWith, switchMap, take } from "rxjs/operators";
 import { environment } from "../../../../../environments/environment";
+import { AppRoutes } from "../../../models/app-routes";
 import { WebappAuthService } from "../../../../webapp/auth/webapp-auth.service";
 import { DataStore } from "../../../data-store/data-store";
 import { ActivityService } from "../../activity/activity.service";
@@ -78,7 +80,8 @@ export class WebappSyncService extends SyncService<void> implements OnDestroy {
     @Inject(UserSettingsService) public readonly userSettingsService: UserSettingsService,
     @Inject(LoggerService) public readonly logger: LoggerService,
     @Inject(HttpClient) private readonly httpClient: HttpClient,
-    @Inject(WebappAuthService) private readonly authService: WebappAuthService
+    @Inject(WebappAuthService) private readonly authService: WebappAuthService,
+    @Inject(Router) private readonly router: Router
   ) {
     super(versionsProvider, dataStore, activityService, streamsService, athleteService, userSettingsService, logger);
 
@@ -207,7 +210,17 @@ export class WebappSyncService extends SyncService<void> implements OnDestroy {
   }
 
   public redirect(): void {
-    this.sync();
+    firstValueFrom(
+      this.httpClient.get<{ configured: boolean }>(`${environment.backendBaseUrl}/api/settings/intervals-connector`, {
+        withCredentials: true
+      })
+    ).then(settings => {
+      if (!settings.configured) {
+        this.router.navigate(["/" + AppRoutes.connectors]);
+        return;
+      }
+      this.sync();
+    });
   }
 
   public stop(): Promise<void> {
