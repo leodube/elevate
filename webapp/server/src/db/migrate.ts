@@ -2,7 +2,8 @@ import fs from "fs";
 import path from "path";
 import { pool } from "./pool";
 
-const MIGRATIONS_DIR = path.join(__dirname, "migrations");
+// Configurable so the runtime image can point this at a stable location
+const MIGRATIONS_DIR = process.env.MIGRATIONS_DIR ?? path.join(__dirname, "migrations");
 
 /**
  * Applies any .sql files in ./migrations that haven't been run yet, in
@@ -23,13 +24,11 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
-    const applied = new Set(
-      (await client.query("SELECT filename FROM schema_migrations")).rows.map((r) => r.filename)
-    );
+    const applied = new Set((await client.query("SELECT filename FROM schema_migrations")).rows.map(r => r.filename));
 
     const files = fs
       .readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith(".sql"))
+      .filter(f => f.endsWith(".sql"))
       .sort();
 
     for (const file of files) {
@@ -62,7 +61,7 @@ if (require.main === module) {
       console.log("Migrations up to date");
       process.exit(0);
     })
-    .catch((err) => {
+    .catch(err => {
       console.error(err);
       process.exit(1);
     });

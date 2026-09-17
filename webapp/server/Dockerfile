@@ -26,9 +26,11 @@ COPY --from=server-build /repo/webapp/server/package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=server-build /repo/webapp/server/dist ./dist
+COPY --from=server-build /repo/webapp/server/src/db/migrations ./migrations
 COPY --from=client-build /repo/dist/app ./public
 
 ENV NODE_ENV=production
+ENV MIGRATIONS_DIR=/app/migrations
 EXPOSE 3000
 
 CMD ["npm", "start"]
