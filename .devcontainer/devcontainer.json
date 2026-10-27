@@ -28,7 +28,7 @@
   "containerEnv": {
     "PGHOST": "postgres",
     "PGPORT": "5432",
-    "PGDATABASE": "elevate_webapp",
+    "PGDATABASE": "elevate",
     "PGUSER": "postgres",
     "PGPASSWORD": "postgres"
   },
