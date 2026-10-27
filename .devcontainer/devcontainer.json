@@ -6,24 +6,6 @@
   "workspaceFolder": "/workspace",
   "runArgs": ["--network=devnet"],
 
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "git.openRepositoryInParentFolders": "always",
-        "eslint.workingDirectories": [
-          "webapp/server",
-          "appcore"
-        ]
-      },
-      "extensions": [
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-        "cweijan.vscode-postgresql-client2",
-        "angular.ng-template"
-      ]
-    }
-  },
-
   "forwardPorts": [3000, 4200],
 
   "containerEnv": {
