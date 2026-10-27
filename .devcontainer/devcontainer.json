@@ -1,6 +1,7 @@
 {
   "name": "Elevate",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "containerUser": "node",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
   "workspaceFolder": "/workspace",
   "runArgs": ["--network=devnet"],
