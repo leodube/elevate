@@ -1,6 +1,6 @@
 import _ from "lodash";
 import moment, { Moment } from "moment";
-import { Component, Inject, OnDestroy, OnInit } from "@angular/core";
+import { Component, Inject, OnDestroy, OnInit, Optional } from "@angular/core";
 import { YearProgressService } from "./shared/services/year-progress.service";
 import { YearProgressModel } from "./shared/models/year-progress.model";
 import { YearProgressTypeModel } from "./shared/models/year-progress-type.model";
@@ -11,6 +11,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { SyncService } from "../shared/services/sync/sync.service";
 import { UserSettingsService } from "../shared/services/user-settings/user-settings.service";
 import { ActivityService } from "../shared/services/activity/activity.service";
+import { WebappActivityService } from "../shared/services/activity/impl/webapp-activity.service";
 import { YearProgressOverviewDialogComponent } from "./year-progress-overview-dialog/year-progress-overview-dialog.component";
 import { YearProgressForOverviewModel } from "./shared/models/year-progress-for-overview.model";
 import { AppError } from "../shared/models/app-error.model";
@@ -162,6 +163,7 @@ export class YearProgressComponent implements OnInit, OnDestroy {
   public periodMultiplier: number;
   public progressTypes: YearProgressTypeModel[];
   public availableActivityTypes: ElevateSport[];
+  public activityCountByTypeModels: ActivityCountByType[];
   public availableYears: number[];
   public selectedProgressType: YearProgressTypeModel;
   public selectedYears: number[];
@@ -187,7 +189,10 @@ export class YearProgressComponent implements OnInit, OnDestroy {
     @Inject(YearProgressService) public readonly yearProgressService: YearProgressService,
     @Inject(MatDialog) private readonly dialog: MatDialog,
     @Inject(MediaObserver) public readonly mediaObserver: MediaObserver,
-    @Inject(LoggerService) private readonly logger: LoggerService
+    @Inject(LoggerService) private readonly logger: LoggerService,
+    @Optional()
+    @Inject(WebappActivityService)
+    private readonly webappActivityService: WebappActivityService
   ) {
     this.availableYears = [];
     this.availableActivityTypes = [];
@@ -235,16 +240,23 @@ export class YearProgressComponent implements OnInit, OnDestroy {
         this.hasActivities = count > 0;
 
         return this.hasActivities
-          ? Promise.all([this.userSettingsService.fetch(), this.activityService.fetch()])
+          ? Promise.all([
+              this.userSettingsService.fetch(),
+              this.activityService.fetch(),
+              this.webappActivityService
+                ? this.webappActivityService.fetchSportsSummary()
+                : Promise.resolve(this.activityService.countByType())
+            ])
           : Promise.reject(new AppError(AppError.SYNC_NOT_SYNCED, "No activities available"));
       })
       .then(
         (results: any[]) => {
-          this.activities = _.last(results) as Activity[];
+          this.activities = results[1] as Activity[];
 
           if (this.hasActivities) {
-            const userSettings = _.first(results) as BaseUserSettings;
+            const userSettings = results[0] as BaseUserSettings;
             this.isMetric = userSettings.systemUnit === MeasureSystem.METRIC;
+            this.activityCountByTypeModels = results[2] as ActivityCountByType[];
             this.setup();
           }
 
@@ -267,8 +279,7 @@ export class YearProgressComponent implements OnInit, OnDestroy {
    */
   public setup(): void {
     // Find all unique sport types
-    const activityCountByTypeModels = this.activityService.countByType();
-
+    const activityCountByTypeModels = this.activityCountByTypeModels;
     this.availableActivityTypes = _.map(activityCountByTypeModels, "type");
 
     // Fetch saved config

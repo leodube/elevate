@@ -166,7 +166,7 @@ export class ActivityViewBestSplitsComponent implements OnInit {
       dataStreams: this.dataStreams
     };
 
-    return this.activityService.computeSplit(splitRequest).then(response => {
+    return this.activityService.computeSplit(splitRequest, this.activity.id).then(response => {
       // Detect and update new columns for  table print
       this.columnDefs = _.uniq(
         _.union(

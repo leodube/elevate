@@ -1,0 +1,22 @@
+{
+  "name": "Elevate",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "containerUser": "node",
+
+  "containerEnv": {
+    "PGHOST": "postgres",
+    "PGPORT": "5432",
+    "PGDATABASE": "elevate",
+    "PGUSER": "elevate",
+    "PGPASSWORD": "elevate"
+  },
+
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+
+  "runArgs": ["--network=devnet"],
+
+  "forwardPorts": [3000, 4200],
+
+  "postCreateCommand": "npm install --prefix webapp/server && npm install --prefix appcore"
+}

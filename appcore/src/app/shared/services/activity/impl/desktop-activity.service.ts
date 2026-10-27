@@ -81,7 +81,7 @@ export class DesktopActivityService extends ActivityService {
     return this.ipcTunnelService.send<IpcMessage, Activity>(computeActivityMessage);
   }
 
-  public computeSplit(splitRequest: SplitRequest): Promise<SplitResponse> {
+  public computeSplit(splitRequest: SplitRequest, activityId?: number | string): Promise<SplitResponse> {
     const computeSplitMessage = new IpcMessage(Channel.computeSplits, splitRequest);
     return this.ipcTunnelService.send<IpcMessage, SplitResponse>(computeSplitMessage);
   }

@@ -23,7 +23,7 @@
             </mat-select>
           </mat-form-field>
           <div fxFlex="1"></div>
-          <mat-form-field fxFlex="9">
+          <mat-form-field fxFlex="11">
             <mat-label>Birth Date</mat-label>
             <input matInput name="birthYear" [(ngModel)]="athleteModel.birthDate" (dateChange)="onAthleteChanged()"
                    [matDatepicker]="picker" [max]="MAX_BIRTHDAY_DATE" required>

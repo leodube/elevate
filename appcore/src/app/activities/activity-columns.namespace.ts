@@ -60,7 +60,11 @@ export namespace ActivityColumns {
   }
 
   export class CadenceUnits implements SpecificUnits {
-    constructor(public cycling: string, public running: string, public swimming: string) {}
+    constructor(
+      public cycling: string,
+      public running: string,
+      public swimming: string
+    ) {}
   }
 
   export enum ColumnType {
@@ -81,7 +85,7 @@ export namespace ActivityColumns {
     public header: string;
     public category: string;
     public description: string;
-    public buildTarget: BuildTarget;
+    public buildTargets: BuildTarget[];
 
     public width = "115px"; // Default column width
     public isDefault = false; // Column is not default
@@ -117,8 +121,8 @@ export namespace ActivityColumns {
       return this;
     }
 
-    public setBuildTarget(value: BuildTarget): Column {
-      this.buildTarget = value;
+    public setBuildTarget(...values: BuildTarget[]): Column {
+      this.buildTargets = values;
       return this;
     }
   }
@@ -1145,15 +1149,19 @@ export namespace ActivityColumns {
       new TextColumn(Category.OTHERS, ["trainer"], Print.boolean, "Indoor"),
       new TextColumn(Category.OTHERS, ["isSwimPool"], Print.boolean, "Swim Pool").setBuildTarget(BuildTarget.DESKTOP),
       new TextColumn(Category.OTHERS, ["device"], Print.field, "Device")
-        .setBuildTarget(BuildTarget.DESKTOP)
+        .setBuildTarget(BuildTarget.DESKTOP, BuildTarget.WEBAPP)
         .setWidth("150px"),
-      new TextColumn(Category.OTHERS, ["flags"], Print.boolean, "Flagged").setBuildTarget(BuildTarget.DESKTOP),
+      new TextColumn(Category.OTHERS, ["flags"], Print.boolean, "Flagged").setBuildTarget(
+        BuildTarget.DESKTOP,
+        BuildTarget.WEBAPP
+      ),
       new TextColumn(Category.OTHERS, ["connector"], Print.field, "Connector").setBuildTarget(BuildTarget.DESKTOP),
       new TextColumn(Category.OTHERS, ["extras", "file", "type"], Print.field, "File Type").setBuildTarget(
         BuildTarget.DESKTOP
       ),
       new NumberColumn(Category.OTHERS, ["laps"], null, "Intervals Count", Print.count).setBuildTarget(
-        BuildTarget.DESKTOP
+        BuildTarget.DESKTOP,
+        BuildTarget.WEBAPP
       ),
       new DateColumn(Category.OTHERS, ["creationTime"], "Created Time").setWidth("150px"),
       new DateColumn(Category.OTHERS, ["lastEditTime"], "Last Edited Time").setWidth("150px"),

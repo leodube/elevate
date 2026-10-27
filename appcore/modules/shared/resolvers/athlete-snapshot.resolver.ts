@@ -32,11 +32,11 @@ export class AthleteSnapshotResolver {
         return null;
       }
       onDateString =
-        onDate.getFullYear() +
+        onDate.getUTCFullYear() +
         "-" +
-        (onDate.getMonth() + 1).toString().padStart(2, "0") +
+        (onDate.getUTCMonth() + 1).toString().padStart(2, "0") +
         "-" +
-        onDate.getDate().toString().padStart(2, "0");
+        onDate.getUTCDate().toString().padStart(2, "0");
     } else {
       if (_.isEmpty(onDate) || isNaN(new Date(onDate).getTime())) {
         return null;

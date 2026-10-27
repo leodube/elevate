@@ -21,6 +21,8 @@ export namespace UserSettings {
       return _.cloneDeep(DesktopUserSettings.DEFAULT_MODEL);
     } else if (buildTarget === BuildTarget.EXTENSION) {
       return _.cloneDeep(ExtensionUserSettings.DEFAULT_MODEL);
+    } else if (buildTarget === BuildTarget.WEBAPP) {
+      return { ..._.cloneDeep(DesktopUserSettings.DEFAULT_MODEL), buildTarget: BuildTarget.WEBAPP };
     } else {
       throw new Error("Unknown environment target");
     }
